@@ -1,9 +1,14 @@
 from pathlib import Path
+import sys
 
+sys.path.append("/home/user/colpali")
 import configue
 import typer
 
-from colpali_engine.trainer.colmodel_training import ColModelTraining, ColModelTrainingConfig
+from colpali_engine.trainer.colmodel_training import (
+    ColModelTraining,
+    ColModelTrainingConfig,
+)
 from colpali_engine.utils.gpu_stats import print_gpu_utilization
 
 
@@ -28,4 +33,4 @@ def main(config_file: Path) -> None:
 
 
 if __name__ == "__main__":
-    typer.run(main)
+    main("./scripts/configs/qwen2/train_colstella_model.yaml")

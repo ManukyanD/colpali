@@ -66,13 +66,17 @@ class ColModelTrainingConfig:
         if self.pretrained_peft_model_name_or_path is not None:
             self.model.load_adapter(self.pretrained_peft_model_name_or_path)
 
-            print(f"Loaded pretrained adapter from {self.pretrained_peft_model_name_or_path}")
+            print(
+                f"Loaded pretrained adapter from {self.pretrained_peft_model_name_or_path}"
+            )
 
         if self.peft_config is not None:
             print("Configurating PEFT model")
             if self.processor is None:
                 # Might be deprecated - use the "else" branch
-                self.model = prepare_model_for_kbit_training(self.model)  # use_gradient_checkpointing=True
+                self.model = prepare_model_for_kbit_training(
+                    self.model
+                )  # use_gradient_checkpointing=True
                 # self.model.enable_input_require_grads()
                 self.model = get_peft_model(self.model, self.peft_config)
                 self.model.print_trainable_parameters()
@@ -83,7 +87,9 @@ class ColModelTrainingConfig:
                     self.model = get_peft_model(self.model, self.peft_config)
                     self.model.print_trainable_parameters()
                 else:
-                    print(f"Adapter already loaded from {self.pretrained_peft_model_name_or_path}. Not overwriting.")
+                    print(
+                        f"Adapter already loaded from {self.pretrained_peft_model_name_or_path}. Not overwriting."
+                    )
 
     print_gpu_utilization()
 
@@ -113,7 +119,10 @@ class ColModelTraining:
         self.retrieval_evaluator = CustomRetrievalEvaluator()
 
     def train(self) -> None:
-        if isinstance(self.collator, CorpusQueryCollator) and self.collator.mined_negatives:
+        if (
+            isinstance(self.collator, CorpusQueryCollator)
+            and self.collator.mined_negatives
+        ):
             print("Training with hard negatives")
         else:
             print("Training with in-batch negatives")
@@ -130,14 +139,22 @@ class ColModelTraining:
 
         trainer.args.remove_unused_columns = False
 
-        result = trainer.train(resume_from_checkpoint=self.config.tr_args.resume_from_checkpoint)
+        result = trainer.train(
+            resume_from_checkpoint=self.config.tr_args.resume_from_checkpoint
+        )
         print_summary(result)
 
     def eval_dataset(self, test_dataset):
         self.model.eval()
 
-        idx_with_query = [idx for idx, sample in enumerate(test_dataset["query"]) if sample is not None]
-        idx_without_query = [idx for idx, sample in enumerate(test_dataset["query"]) if sample is None]
+        idx_with_query = [
+            idx
+            for idx, sample in enumerate(test_dataset["query"])
+            if sample is not None
+        ]
+        idx_without_query = [
+            idx for idx, sample in enumerate(test_dataset["query"]) if sample is None
+        ]
 
         dataloader_with_query = DataLoader(
             test_dataset.select(idx_with_query),
@@ -154,14 +171,21 @@ class ColModelTraining:
 
         # dataset is ordered so that non-null queries come first
         test_dataset = concatenate_datasets(
-            [test_dataset.select(idx_with_query), test_dataset.select(idx_without_query)]
+            [
+                test_dataset.select(idx_with_query),
+                test_dataset.select(idx_without_query),
+            ]
         )
 
         relevant_docs = {}
         docidx_2_docid = {}
         qsidx_2_query = []
         for idx, sample in enumerate(test_dataset):
-            doc_id = sample["image_filename"] if "image_filename" in sample else str(hash(sample["doc"]))
+            doc_id = (
+                sample["image_filename"]
+                if "image_filename" in sample
+                else str(hash(sample["doc"]))
+            )
             # query_id = sample["query_id"] if "query_id" in sample else str(hash(sample["query"]))
             if sample["query"] is not None:
                 relevant_docs[str(idx)] = {doc_id: 1}
@@ -176,7 +200,13 @@ class ColModelTraining:
             for dataloader in [dataloader_with_query, dataloader_without_query]:
                 for batch in tqdm(dataloader):
                     # feed only kwargs with 'doc_' prefix
-                    doc = self.model(**{k[4:]: v.to(device) for k, v in batch.items() if k.startswith("doc")})
+                    doc = self.model(
+                        **{
+                            k[4:]: v.to(device)
+                            for k, v in batch.items()
+                            if k.startswith("doc")
+                        }
+                    )
                     ps.extend(list(torch.unbind(doc.to("cpu"))))
 
                     if "query_input_ids" in batch:
@@ -195,7 +225,8 @@ class ColModelTraining:
         assert scores.shape[0] == len(qsidx_2_query)
         for idx, scores_per_query in enumerate(scores):
             results[qsidx_2_query[idx]] = {
-                docidx_2_docid[str(docidx)]: float(score) for docidx, score in enumerate(scores_per_query)
+                docidx_2_docid[str(docidx)]: float(score)
+                for docidx, score in enumerate(scores_per_query)
             }
 
         # evaluate
@@ -220,7 +251,10 @@ class ColModelTraining:
             max_length=self.config.max_length,
         )
         if self.config.eval_dataset_loader is not None:
-            for test_name, test_dataset_loading_func in self.config.eval_dataset_loader.items():
+            for (
+                test_name,
+                test_dataset_loading_func,
+            ) in self.config.eval_dataset_loader.items():
                 print(f"Evaluating {test_name}")
                 test_ds = test_dataset_loading_func()
                 metrics = self.eval_dataset(test_ds)
