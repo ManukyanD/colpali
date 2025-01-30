@@ -1,6 +1,7 @@
 config:
   (): colpali_engine.trainer.colmodel_training.ColModelTrainingConfig
-  output_dir: !path ../../../models/colstella-ba256-ckpt-5e-nopad
+  output_dir: !path ../../../models/colstella_lora64_bsz20x2_lr5e-4
+  wandb_project: "small_colstella"
   processor:
     (): colpali_engine.utils.transformers_wrappers.AllPurposeWrapper
     class_to_instanciate: !ext colpali_engine.models.ColStellaProcessor
@@ -14,6 +15,9 @@ config:
     pretrained_model_name_or_path: "./models/colstella_base"
     torch_dtype:  !ext torch.float
     attn_implementation: "sdpa"
+    unpad_inputs: false
+    use_memory_efficient_attention: true
+    vision_attn_implementation: "flash_attention_2"
 #    device_map: "auto"
 #    quantization_config:
 #      (): transformers.BitsAndBytesConfig
@@ -34,39 +38,40 @@ config:
     output_dir: null
     overwrite_output_dir: true
     num_train_epochs: 5
-    per_device_train_batch_size: 300
+    per_device_train_batch_size: 20
     gradient_checkpointing: true
     gradient_checkpointing_kwargs: { "use_reentrant": false }
     # gradient_checkpointing: true
     # 6 x 8 gpus = 48 batch size
-    # gradient_accumulation_steps: 4
+    gradient_accumulation_steps: 2
     per_device_eval_batch_size: 8
     eval_strategy: "steps"
-    dataloader_num_workers: 8
+    dataloader_num_workers: 2
     bf16: true
-    save_steps: 500
+    save_steps: 100
     logging_steps: 1
-    eval_steps: 100
+    eval_steps: 200
     warmup_steps: 100
     learning_rate: 5e-4
-    save_total_limit: 2
+    save_total_limit: null
     # resume_from_checkpoint: true
     # optim: "paged_adamw_8bit"
     # wandb logging
-    # wandb_project: "colqwen2"
-    # run_name: "colqwen2-ba32-nolora"
-    report_to: "none"
+    # wandb_project: "small_colstella"
+    run_name: "lora64_bsz20x2_lr5e-4"
+    report_to: "wandb"
     deepspeed: "/home/user/colpali/deep_speed_config.json"
 
 
   peft_config:
     (): peft.LoraConfig
-    r: 32
-    lora_alpha: 32
-    lora_dropout: 0.1
+    r: 64
+    lora_alpha: 64
+    lora_dropout: 0
     init_lora_weights: "gaussian"
     bias: "none"
     task_type: "FEATURE_EXTRACTION"
-    target_modules: '(.*(model).*(down_proj|gate_proj|up_proj|k_proj|q_proj|v_proj|o_proj).*$|.*(custom_text_proj).*$|.*(projection_layer).*$)'
+    target_modules: '.*(new).*(down_proj|up_gate_proj|qkv_proj|o_proj).*$'
+    modules_to_save: ["custom_text_proj", "projection_layer"]
     # target_modules: '(.*(language_model).*(down_proj|gate_proj|up_proj|k_proj|q_proj|v_proj|o_proj).*$|.*(custom_text_proj).*$)'
 

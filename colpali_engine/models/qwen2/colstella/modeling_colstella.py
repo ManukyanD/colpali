@@ -15,12 +15,12 @@ class ColStella(NewPreTrainedModel):
 
     main_input_name: ClassVar[str] = "doc_input_ids"  # transformers-related
 
-    def __init__(self, config: NewConfig):
+    def __init__(self, config: NewConfig, vision_attn_implementation=None):
         super().__init__(config=config)
         self.dim = 128
         self.padding_side = "left"
         self.visual = Qwen2VisionTransformerPretrainedModel._from_config(
-            config.vision_config
+            config.vision_config, attn_implementation=vision_attn_implementation
         )
         self.new = NewModel(config, add_pooling_layer=False)
         self.custom_text_proj = nn.Linear(self.new.config.hidden_size, self.dim)
@@ -45,12 +45,12 @@ class ColStella(NewPreTrainedModel):
         pixel_values_videos: Optional[torch.FloatTensor] = None,
         image_grid_thw: Optional[torch.LongTensor] = None,
         video_grid_thw: Optional[torch.LongTensor] = None,
+        token_type_ids: Optional[torch.LongTensor] = None,
     ) -> torch.Tensor:
-        print("pixel_values" if pixel_values is not None else None)
-        attention_mask = torch.tensor(attention_mask)
+        attention_mask = torch.stack(list(attention_mask), dim=0)
         if inputs_embeds is None:
             inputs_embeds, *rest = self.new.embeddings(
-                unpad_inputs=False, input_ids=input_ids
+                unpad_inputs=self.config.unpad_inputs, input_ids=input_ids
             )
             if pixel_values is not None:
                 pixel_values = pixel_values.type(self.visual.get_dtype())
@@ -73,12 +73,11 @@ class ColStella(NewPreTrainedModel):
             input_ids=None,
             position_ids=position_ids,
             attention_mask=attention_mask,
-            past_key_values=past_key_values,
             inputs_embeds=inputs_embeds,
-            use_cache=use_cache,
             output_attentions=output_attentions,
             output_hidden_states=output_hidden_states,
             return_dict=return_dict,
+            token_type_ids=token_type_ids,
         )
 
         hidden_states = outputs[0]

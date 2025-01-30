@@ -241,7 +241,7 @@ class TestSetFactory:
         self.dataset_path = dataset_path
 
     def __call__(self, *args, **kwargs):
-        dataset = load_dataset(self.dataset_path, split="test")
+        dataset = load_dataset(self.dataset_path, split="test", num_proc=40)
         return dataset
 
 

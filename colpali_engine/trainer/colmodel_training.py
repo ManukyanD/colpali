@@ -1,8 +1,10 @@
+from gc import callbacks
 import json
 import os
 from dataclasses import dataclass
 from typing import Callable, Dict, Optional, Tuple
 
+import numpy as np
 import torch
 from datasets import concatenate_datasets
 from peft import LoraConfig, get_peft_model, prepare_model_for_kbit_training
@@ -30,6 +32,7 @@ class ColModelTrainingConfig:
     model: PreTrainedModel
     tr_args: TrainingArguments = None
     output_dir: str = None
+    wandb_project: str = None
     max_length: int = 256
     run_eval: bool = True
     run_train: bool = True
@@ -126,7 +129,11 @@ class ColModelTraining:
             print("Training with hard negatives")
         else:
             print("Training with in-batch negatives")
+        for name, param in self.model.named_parameters():
+            if param.requires_grad == True:
+                print("Trainable: ", name)
 
+        os.environ["WANDB_PROJECT"] = self.config.wandb_project
         trainer = ContrastiveTrainer(
             model=self.model,
             train_dataset=self.dataset["train"],
@@ -135,6 +142,7 @@ class ColModelTraining:
             data_collator=self.collator,
             loss_func=self.config.loss_func,
             is_vision_model=self.config.processor is not None,
+            # eval_functions=[self.eval],
         )
 
         trainer.args.remove_unused_columns = False
@@ -161,12 +169,14 @@ class ColModelTraining:
             batch_size=self.config.tr_args.per_device_eval_batch_size,
             shuffle=False,
             collate_fn=self.collator,
+            num_workers=8,
         )
         dataloader_without_query = DataLoader(
             test_dataset.select(idx_without_query),
             batch_size=self.config.tr_args.per_device_eval_batch_size,
             shuffle=False,
             collate_fn=self.collator,
+            num_workers=8,
         )
 
         # dataset is ordered so that non-null queries come first
@@ -231,7 +241,7 @@ class ColModelTraining:
 
         # evaluate
         metrics = self.retrieval_evaluator.compute_mteb_metrics(relevant_docs, results)
-        print("MTEB metrics:", metrics)
+        # print("MTEB metrics:", metrics)
 
         return metrics
 
@@ -268,6 +278,12 @@ class ColModelTraining:
         # save results as json
         with open(f"{self.config.output_dir}/results.json", "w") as f:
             json.dump(all_metrics, f)
+
+        all_metrics = {
+            x: all_metrics[x]["ndcg_at_5"] for x in all_metrics if x != "validation_set"
+        }
+        all_metrics["average_ndcg_at_5"] = np.mean(list(all_metrics.values()))
+        return all_metrics
 
     def save(self, config_file):
         # save model

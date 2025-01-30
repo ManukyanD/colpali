@@ -35,6 +35,7 @@ def initialize():
     processor = ColStellaProcessor.from_pretrained("./models/colstella_base")
 
 
+initialize()
 t = torch.tensor([[1, 2], [3, 4]])
 m = torch.tensor([[True, False], [True, True]])
 print(t[m].unsqueeze(0))
