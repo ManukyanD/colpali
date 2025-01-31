@@ -84,5 +84,5 @@ class ContrastiveTrainer(Trainer):
         for eval_set in eval_results:
             # for key, value in eval_results[eval_set].items():
             metrics[f"{eval_set}_ndcg_at_5"] = eval_results[eval_set]
-        # self.log_metrics(metrics)
+        self.log_metrics(metrics)
         return metrics

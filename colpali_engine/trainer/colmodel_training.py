@@ -142,7 +142,7 @@ class ColModelTraining:
             data_collator=self.collator,
             loss_func=self.config.loss_func,
             is_vision_model=self.config.processor is not None,
-            # eval_functions=[self.eval],
+            eval_functions=[self.eval],
         )
 
         trainer.args.remove_unused_columns = False

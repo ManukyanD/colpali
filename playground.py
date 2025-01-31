@@ -1,4 +1,6 @@
 import torch
+from colpali_engine.models.qwen2.biqwen2.modeling_biqwen2 import BiQwen2
+from colpali_engine.models.qwen2.colqwen2.modeling_colqwen2 import ColQwen2
 from colpali_engine.models.qwen2.colstella.modeling_colstella import (
     ColStella,
     NewConfig,
@@ -16,7 +18,7 @@ from colpali_engine.models.qwen2.colstella.processing_colstella import (
 )
 
 
-def initialize():
+def initialize_col_stella():
     qwen = Qwen2VLForConditionalGeneration.from_pretrained("Qwen/Qwen2-VL-2B-Instruct")
     config = NewConfig.from_pretrained("NovaSearch/stella_en_400M_v5")
     config.vision_config = qwen.config.vision_config
@@ -35,7 +37,41 @@ def initialize():
     processor = ColStellaProcessor.from_pretrained("./models/colstella_base")
 
 
-initialize()
-t = torch.tensor([[1, 2], [3, 4]])
-m = torch.tensor([[True, False], [True, True]])
-print(t[m].unsqueeze(0))
+def initialize_colqwen_with_latent_attn():
+    model = ColQwen2.from_pretrained(
+        "Qwen/Qwen2-VL-2B-Instruct", num_latent_vectors=512
+    )
+    torch.nn.init.normal_(model.latent_output_attn.latent_kv.data)
+    torch.nn.init.normal_(model.latent_output_attn.output_projection[0].weight)
+    torch.nn.init.constant_(model.latent_output_attn.output_projection[0].bias, val=0.0)
+    torch.nn.init.normal_(model.latent_output_attn.output_projection[2].weight)
+    torch.nn.init.constant_(model.latent_output_attn.output_projection[2].bias, val=0.0)
+
+    model.save_pretrained("./models/colqwen2-latent-attn-base")
+
+    model = ColQwen2.from_pretrained(
+        "./models/colqwen2-latent-attn-base", num_latent_vectors=512
+    )
+    print(model)
+
+
+# initialize_colqwen_with_latent_attn()
+model = ColQwen2.from_pretrained(
+    "./models/colqwen2-latent-attn-base", num_latent_vectors=512
+)
+
+# t = torch.tensor([[11, 22], [33, 44]], dtype=torch.float)
+# m = torch.tensor([1, 3, 4])
+# print(t[m].unsqueeze(0))
+# n = torch.zeros((2, 2), dtype=torch.float)
+# n[m] = t[m]
+# print(n)
+
+
+# t = torch.tensor(0.0, requires_grad=True)
+# b = torch.tensor(0.0, requires_grad=True)
+# x = t / b
+# print(x)
+# x = torch.nan_to_num(x, nan=0.0)
+# x.backward()
+# print(t.grad)

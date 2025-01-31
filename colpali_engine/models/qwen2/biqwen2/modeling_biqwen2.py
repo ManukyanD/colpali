@@ -16,22 +16,21 @@ class BiQwen2(Qwen2VLForConditionalGeneration):
         self.padding_side = "left"
         self.post_init()
 
-
     def inner_forward(
-            self,
-            input_ids: torch.LongTensor = None,
-            attention_mask: Optional[torch.Tensor] = None,
-            position_ids: Optional[torch.LongTensor] = None,
-            past_key_values: Optional[List[torch.FloatTensor]] = None,
-            inputs_embeds: Optional[torch.FloatTensor] = None,
-            use_cache: Optional[bool] = None,
-            output_attentions: Optional[bool] = None,
-            output_hidden_states: Optional[bool] = None,
-            return_dict: Optional[bool] = None,
-            pixel_values: Optional[torch.Tensor] = None,
-            pixel_values_videos: Optional[torch.FloatTensor] = None,
-            image_grid_thw: Optional[torch.LongTensor] = None,
-            video_grid_thw: Optional[torch.LongTensor] = None,
+        self,
+        input_ids: torch.LongTensor = None,
+        attention_mask: Optional[torch.Tensor] = None,
+        position_ids: Optional[torch.LongTensor] = None,
+        past_key_values: Optional[List[torch.FloatTensor]] = None,
+        inputs_embeds: Optional[torch.FloatTensor] = None,
+        use_cache: Optional[bool] = None,
+        output_attentions: Optional[bool] = None,
+        output_hidden_states: Optional[bool] = None,
+        return_dict: Optional[bool] = None,
+        pixel_values: Optional[torch.Tensor] = None,
+        pixel_values_videos: Optional[torch.FloatTensor] = None,
+        image_grid_thw: Optional[torch.LongTensor] = None,
+        video_grid_thw: Optional[torch.LongTensor] = None,
     ) -> torch.Tensor:
 
         if inputs_embeds is None:
@@ -39,15 +38,27 @@ class BiQwen2(Qwen2VLForConditionalGeneration):
             if pixel_values is not None:
                 pixel_values = pixel_values.type(self.visual.get_dtype())
                 image_embeds = self.visual(pixel_values, grid_thw=image_grid_thw)
-                image_mask = (input_ids == self.config.image_token_id).unsqueeze(-1).expand_as(inputs_embeds)
-                image_embeds = image_embeds.to(inputs_embeds.device, inputs_embeds.dtype)
+                image_mask = (
+                    (input_ids == self.config.image_token_id)
+                    .unsqueeze(-1)
+                    .expand_as(inputs_embeds)
+                )
+                image_embeds = image_embeds.to(
+                    inputs_embeds.device, inputs_embeds.dtype
+                )
                 inputs_embeds = inputs_embeds.masked_scatter(image_mask, image_embeds)
 
             if pixel_values_videos is not None:
                 pixel_values_videos = pixel_values_videos.type(self.visual.get_dtype())
                 video_embeds = self.visual(pixel_values_videos, grid_thw=video_grid_thw)
-                video_mask = (input_ids == self.config.video_token_id).unsqueeze(-1).expand_as(inputs_embeds)
-                video_embeds = video_embeds.to(inputs_embeds.device, inputs_embeds.dtype)
+                video_mask = (
+                    (input_ids == self.config.video_token_id)
+                    .unsqueeze(-1)
+                    .expand_as(inputs_embeds)
+                )
+                video_embeds = video_embeds.to(
+                    inputs_embeds.device, inputs_embeds.dtype
+                )
                 inputs_embeds = inputs_embeds.masked_scatter(video_mask, video_embeds)
 
             if attention_mask is not None:
@@ -68,18 +79,17 @@ class BiQwen2(Qwen2VLForConditionalGeneration):
         hidden_states = outputs[0]
         return hidden_states
 
-
-
     def forward(self, *args, **kwargs) -> torch.Tensor:
         # Delete output_hidden_states from kwargs
         kwargs.pop("output_hidden_states", None)
-
 
         # The following code is a hack to make sure the scatter in DDP is done correctly when training on multiple GPUs
         if "pixel_values" in kwargs:
             # compute pixel_values offsets
             offsets = kwargs["image_grid_thw"][:, 1] * kwargs["image_grid_thw"][:, 2]
-            kwargs["pixel_values"] = torch.cat([pv[:o] for pv, o in zip(kwargs["pixel_values"], offsets)], dim=0)
+            kwargs["pixel_values"] = torch.cat(
+                [pv[:o] for pv, o in zip(kwargs["pixel_values"], offsets)], dim=0
+            )
 
         position_ids, rope_deltas = self.get_rope_index(
             input_ids=kwargs["input_ids"],
@@ -87,11 +97,13 @@ class BiQwen2(Qwen2VLForConditionalGeneration):
             video_grid_thw=None,
             attention_mask=kwargs.get("attention_mask", None),
         )
-        last_hidden_states = self.inner_forward(*args,
-                                  **kwargs,
-                                  position_ids=position_ids,
-                                  use_cache=False,
-                                  output_hidden_states=True)  # (batch_size, sequence_length, hidden_size)
+        last_hidden_states = self.inner_forward(
+            *args,
+            **kwargs,
+            position_ids=position_ids,
+            use_cache=False,
+            output_hidden_states=True,
+        )  # (batch_size, sequence_length, hidden_size)
 
         # proj = torch.sum(last_hidden_states * kwargs["attention_mask"].unsqueeze(-1), dim=1) / torch.sum(
         #     kwargs["attention_mask"], dim=1, keepdim=True

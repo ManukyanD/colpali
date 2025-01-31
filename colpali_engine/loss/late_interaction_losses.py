@@ -14,7 +14,11 @@ class ColbertLoss(torch.nn.Module):
         doc_embeddings: (batch_size, num_doc_tokens, dim)
         """
 
-        scores = torch.einsum("bnd,csd->bcns", query_embeddings, doc_embeddings).max(dim=3)[0].sum(dim=2)
+        scores = (
+            torch.einsum("bnd,csd->bcns", query_embeddings, doc_embeddings)
+            .max(dim=3)[0]
+            .sum(dim=2)
+        )
 
         # scores = torch.zeros((query_embeddings.shape[0], doc_embeddings.shape[0]), device=query_embeddings.device)
         # for i in range(query_embeddings.shape[0]):
@@ -30,7 +34,9 @@ class ColbertLoss(torch.nn.Module):
 
         # assert (scores_einsum - scores < 0.0001).all().item()
 
-        loss_rowwise = self.ce_loss(scores, torch.arange(scores.shape[0], device=scores.device))
+        loss_rowwise = self.ce_loss(
+            scores, torch.arange(scores.shape[0], device=scores.device)
+        )
         # TODO: comparing between queries might not make sense since it's a sum over the length of the query
         # loss_columnwise = self.ce_loss(scores.T, torch.arange(scores.shape[1], device=scores.device))
         # loss = (loss_rowwise + loss_columnwise) / 2
@@ -52,7 +58,9 @@ class ColbertPairwiseCELoss(torch.nn.Module):
 
         # Compute the ColBERT scores
         scores = (
-            torch.einsum("bnd,csd->bcns", query_embeddings, doc_embeddings).max(dim=3)[0].sum(dim=2)
+            torch.einsum("bnd,csd->bcns", query_embeddings, doc_embeddings)
+            .max(dim=3)[0]
+            .sum(dim=2)
         )  # (batch_size, batch_size)
 
         # Positive scores are the diagonal of the scores matrix.
@@ -61,7 +69,9 @@ class ColbertPairwiseCELoss(torch.nn.Module):
         # Negative score for a given query is the maximum of the scores against all all other pages.
         # NOTE: We exclude the diagonal by setting it to a very low value: since we know the maximum score is 1,
         # we can subtract 1 from the diagonal to exclude it from the maximum operation.
-        neg_scores = scores - torch.eye(scores.shape[0], device=scores.device) * 1e6  # (batch_size, batch_size)
+        neg_scores = (
+            scores - torch.eye(scores.shape[0], device=scores.device) * 1e6
+        )  # (batch_size, batch_size)
         neg_scores = neg_scores.max(dim=1)[0]  # (batch_size,)
 
         # Compute the loss
@@ -89,19 +99,31 @@ class ColbertPairwiseNegativeCELoss(torch.nn.Module):
         """
 
         # Compute the ColBERT scores
-        pos_scores = torch.einsum("bnd,bsd->bns", query_embeddings, doc_embeddings).max(dim=2)[0].sum(dim=1)
-        neg_scores = torch.einsum("bnd,bsd->bns", query_embeddings, neg_doc_embeddings).max(dim=2)[0].sum(dim=1)
+        pos_scores = (
+            torch.einsum("bnd,bsd->bns", query_embeddings, doc_embeddings)
+            .max(dim=2)[0]
+            .sum(dim=1)
+        )
+        neg_scores = (
+            torch.einsum("bnd,bsd->bns", query_embeddings, neg_doc_embeddings)
+            .max(dim=2)[0]
+            .sum(dim=1)
+        )
 
         loss = F.softplus(neg_scores - pos_scores).mean()
 
         if self.in_batch_term:
             scores = (
-                torch.einsum("bnd,csd->bcns", query_embeddings, doc_embeddings).max(dim=3)[0].sum(dim=2)
+                torch.einsum("bnd,csd->bcns", query_embeddings, doc_embeddings)
+                .max(dim=3)[0]
+                .sum(dim=2)
             )  # (batch_size, batch_size)
 
             # Positive scores are the diagonal of the scores matrix.
             pos_scores = scores.diagonal()  # (batch_size,)
-            neg_scores = scores - torch.eye(scores.shape[0], device=scores.device) * 1e6  # (batch_size, batch_size)
+            neg_scores = (
+                scores - torch.eye(scores.shape[0], device=scores.device) * 1e6
+            )  # (batch_size, batch_size)
             neg_scores = neg_scores.max(dim=1)[0]  # (batch_size,)
 
             loss += F.softplus(neg_scores - pos_scores).mean()
