@@ -3,6 +3,8 @@ from typing import ClassVar, List, Optional
 import torch
 from transformers.models.qwen2_vl import Qwen2VLConfig, Qwen2VLForConditionalGeneration
 
+from colpali_engine.models.utils.latent_attn_module import LatentOutputAttn
+
 
 class BiQwen2(Qwen2VLForConditionalGeneration):
     """
@@ -11,9 +13,18 @@ class BiQwen2(Qwen2VLForConditionalGeneration):
 
     main_input_name: ClassVar[str] = "doc_input_ids"  # transformers-related
 
-    def __init__(self, config: Qwen2VLConfig):
+    def __init__(self, config: Qwen2VLConfig, num_latent_vectors=0, mean_pooling=False):
         super().__init__(config=config)
         self.padding_side = "left"
+        self.num_latent_vectors = num_latent_vectors
+        self.mean_pooling = mean_pooling
+        if self.num_latent_vectors:
+            self.latent_output_attn = LatentOutputAttn(
+                self.num_latent_vectors,
+                self.config.hidden_size,
+                self.config.intermediate_size,
+                self.config.num_attention_heads,
+            )
         self.post_init()
 
     def inner_forward(
@@ -104,11 +115,22 @@ class BiQwen2(Qwen2VLForConditionalGeneration):
             use_cache=False,
             output_hidden_states=True,
         )  # (batch_size, sequence_length, hidden_size)
+        if self.num_latent_vectors:
+            last_hidden_states = self.latent_output_attn(
+                last_hidden_states, kwargs["attention_mask"]
+            )
+            if self.mean_pooling:
+                proj = torch.mean(last_hidden_states, dim=1)
+            else:
+                proj = last_hidden_states[:, -1, :]
+        else:
+            if self.mean_pooling:
+                proj = torch.sum(
+                    last_hidden_states * kwargs["attention_mask"].unsqueeze(-1), dim=1
+                ) / torch.sum(kwargs["attention_mask"], dim=1, keepdim=True)
+            else:
+                # take the last hidden state
+                proj = last_hidden_states[:, -1, :]
 
-        # proj = torch.sum(last_hidden_states * kwargs["attention_mask"].unsqueeze(-1), dim=1) / torch.sum(
-        #     kwargs["attention_mask"], dim=1, keepdim=True
-        # )
-        # take the last hidden state
-        proj = last_hidden_states[:, -1, :]
         proj = proj / proj.norm(dim=-1, keepdim=True)
         return proj
