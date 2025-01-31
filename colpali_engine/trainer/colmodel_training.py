@@ -7,7 +7,7 @@ from typing import Callable, Dict, Optional, Tuple
 import numpy as np
 import torch
 from datasets import concatenate_datasets
-from peft import LoraConfig, get_peft_model, prepare_model_for_kbit_training
+from peft import LoraConfig, get_peft_model, prepare_model_for_kbit_training, PeftModel
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 from transformers import (
@@ -67,8 +67,9 @@ class ColModelTrainingConfig:
             self.tokenizer = AutoTokenizer.from_pretrained(self.model.name_or_path)
 
         if self.pretrained_peft_model_name_or_path is not None:
-            self.model.load_adapter(self.pretrained_peft_model_name_or_path)
-
+            self.model = PeftModel.from_pretrained(
+                self.model, self.pretrained_peft_model_name_or_path, is_trainable=True
+            )
             print(
                 f"Loaded pretrained adapter from {self.pretrained_peft_model_name_or_path}"
             )

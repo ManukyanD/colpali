@@ -1,6 +1,7 @@
 config:
   (): colpali_engine.trainer.colmodel_training.ColModelTrainingConfig
-  output_dir: !path ../../../models/colqwen2-latent-attn_lora32_bsz64x1_lr5e-4
+  output_dir: !path ../../../models/colqwen2-latent-attn_lora32_bsz64x1_lr5e-4_additional
+  pretrained_peft_model_name_or_path: !path ../../../models/colqwen2-latent-attn_lora32_bsz64x1_lr5e-4/checkpoint-2300
   wandb_project: "colqwen2_latent_attn"
   processor:
     (): colpali_engine.utils.transformers_wrappers.AllPurposeWrapper
@@ -36,7 +37,7 @@ config:
     (): transformers.training_args.TrainingArguments
     output_dir: null
     overwrite_output_dir: true
-    num_train_epochs: 5
+    num_train_epochs: 10
     per_device_train_batch_size: 64
     gradient_checkpointing: true
     gradient_checkpointing_kwargs: { "use_reentrant": false }
@@ -50,10 +51,10 @@ config:
     save_steps: 100
     logging_steps: 1
     eval_steps: 200
-    warmup_steps: 100
-    learning_rate: 5e-4
+    warmup_steps: 0
+    learning_rate: 3e-5
     save_total_limit: null
-    # resume_from_checkpoint: true
+    resume_from_checkpoint: true
     # optim: "paged_adamw_8bit"
     # wandb logging
     # wandb_project: "colqwen2"
