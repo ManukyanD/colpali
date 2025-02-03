@@ -4,7 +4,29 @@ import torch
 from torch import nn
 from transformers.models.qwen2_vl import Qwen2VLConfig, Qwen2VLForConditionalGeneration
 
-from colpali_engine.models.utils.latent_attn_module import LatentOutputAttn
+from colpali_engine.models.utils.latent_attn_module import (
+    LatentOutputAttn,
+)
+
+
+class ColQwen2Config(Qwen2VLConfig):
+    def __init__(
+        self,
+        output_projection=True,
+        latent_attn_num_vectors=0,
+        latent_attn_hidden_size=1536,
+        latent_attn_intermediate_size=8960,
+        latent_attn_output_size=1536,
+        latent_attn_num_heads=12,
+        **kwargs,
+    ):
+        self.output_projection = output_projection
+        self.latent_attn_num_vectors = latent_attn_num_vectors
+        self.latent_attn_hidden_size = latent_attn_hidden_size
+        self.latent_attn_intermediate_size = latent_attn_intermediate_size
+        self.latent_attn_output_size = latent_attn_output_size
+        self.latent_attn_num_heads = latent_attn_num_heads
+        super().__init__(**kwargs)
 
 
 class ColQwen2(Qwen2VLForConditionalGeneration):
@@ -12,21 +34,20 @@ class ColQwen2(Qwen2VLForConditionalGeneration):
     ColQwen2 model implementation from the "ColPali: Efficient Document Retrieval with Vision Language Models" paper.
     """
 
+    config_class = ColQwen2Config
     main_input_name: ClassVar[str] = "doc_input_ids"  # transformers-related
 
-    def __init__(self, config: Qwen2VLConfig, num_latent_vectors=0):
+    def __init__(
+        self,
+        config: ColQwen2Config,
+    ):
         super().__init__(config=config)
         self.dim = 128
-        self.custom_text_proj = nn.Linear(self.model.config.hidden_size, self.dim)
+        if self.config.output_projection:
+            self.custom_text_proj = nn.Linear(self.model.config.hidden_size, self.dim)
         self.padding_side = "left"
-        self.num_latent_vectors = num_latent_vectors
-        if self.num_latent_vectors:
-            self.latent_output_attn = LatentOutputAttn(
-                self.num_latent_vectors,
-                self.config.hidden_size,
-                self.config.intermediate_size,
-                self.config.num_attention_heads,
-            )
+        if self.config.latent_attn_num_vectors:
+            self.latent_output_attn = LatentOutputAttn(self.config)
         self.post_init()
 
     def inner_forward(
@@ -119,18 +140,19 @@ class ColQwen2(Qwen2VLForConditionalGeneration):
             output_hidden_states=True,
         )  # (batch_size, sequence_length, hidden_size)
 
-        if self.num_latent_vectors:
+        if self.config.latent_attn_num_vectors:
             last_hidden_states = self.latent_output_attn(
                 last_hidden_states, kwargs["attention_mask"]
             )
-        proj = self.custom_text_proj(
-            last_hidden_states
-        )  # (batch_size, sequence_length, dim)
+        if self.config.output_projection:
+            last_hidden_states = self.custom_text_proj(
+                last_hidden_states
+            )  # (batch_size, sequence_length, dim)
 
         # L2 normalization
 
         proj = torch.nn.functional.normalize(
-            proj, p=2, dim=-1
+            last_hidden_states, p=2, dim=-1
         )  # (batch_size, sequence_length, dim)
         proj = proj * kwargs["attention_mask"].unsqueeze(
             -1

@@ -1,7 +1,7 @@
 config:
   (): colpali_engine.trainer.colmodel_training.ColModelTrainingConfig
-  output_dir: !path ../../../models/colqwen2-latent-attn_lora32_bsz64x1_lr5e-4_additional
-  pretrained_peft_model_name_or_path: !path ../../../models/colqwen2-latent-attn_lora32_bsz64x1_lr5e-4/checkpoint-2300
+  output_dir: !path ../../../models/colqwen2-latent-attn_no-output-proj_lora32_bsz64x1_lr5e-4
+  # pretrained_peft_model_name_or_path: !path ../../../models/colqwen2-latent-attn_lora32_bsz64x1_lr5e-4/checkpoint-2300
   wandb_project: "colqwen2_latent_attn"
   processor:
     (): colpali_engine.utils.transformers_wrappers.AllPurposeWrapper
@@ -17,7 +17,12 @@ config:
     torch_dtype:  !ext torch.bfloat16
     use_cache: false
     attn_implementation: "flash_attention_2"
-    num_latent_vectors: 512
+    output_projection: false
+    latent_attn_num_vectors: 512
+    latent_attn_hidden_size: 1536
+    latent_attn_intermediate_size: 8960
+    latent_attn_num_heads: 12
+    latent_attn_output_size: 128
 #    device_map: "auto"
 #    quantization_config:
 #      (): transformers.BitsAndBytesConfig
@@ -51,14 +56,14 @@ config:
     save_steps: 100
     logging_steps: 1
     eval_steps: 200
-    warmup_steps: 0
-    learning_rate: 3e-5
+    warmup_steps: 100
+    learning_rate: 5e-4
     save_total_limit: null
-    resume_from_checkpoint: true
+    # resume_from_checkpoint: true
     # optim: "paged_adamw_8bit"
     # wandb logging
     # wandb_project: "colqwen2"
-    run_name: "lora32_bsz64x1_lr5e-4"
+    run_name: "no-output-proj_lora32_bsz64x1_lr5e-4"
     report_to: "wandb"
 
 

@@ -1,6 +1,9 @@
 import torch
 from colpali_engine.models.qwen2.biqwen2.modeling_biqwen2 import BiQwen2
-from colpali_engine.models.qwen2.colqwen2.modeling_colqwen2 import ColQwen2
+from colpali_engine.models.qwen2.colqwen2.modeling_colqwen2 import (
+    ColQwen2,
+    ColQwen2Config,
+)
 from colpali_engine.models.qwen2.colqwen2.processing_colqwen2 import ColQwen2Processor
 from colpali_engine.models.qwen2.colstella.modeling_colstella import (
     ColStella,
@@ -39,10 +42,17 @@ def initialize_col_stella():
 
 
 def initialize_colqwen_with_latent_attn():
-    model = ColQwen2.from_pretrained(
-        "Qwen/Qwen2-VL-2B-Instruct", num_latent_vectors=512
-    )
-    torch.nn.init.normal_(model.latent_output_attn.latent_kv.data)
+    config = ColQwen2Config.from_pretrained("Qwen/Qwen2-VL-2B-Instruct")
+    config.latent_attn_num_vectors = 512
+    config.latent_attn_hidden_size = 1536
+    config.latent_attn_intermediate_size = 8960
+    config.latent_attn_num_heads = 12
+    config.latent_attn_output_size = 128
+    config.output_projection = False
+
+    model = ColQwen2.from_pretrained("Qwen/Qwen2-VL-2B-Instruct", config=config)
+
+    torch.nn.init.normal_(model.latent_output_attn.kv.data)
     torch.nn.init.normal_(model.latent_output_attn.output_projection[0].weight)
     torch.nn.init.constant_(model.latent_output_attn.output_projection[0].bias, val=0.0)
     torch.nn.init.normal_(model.latent_output_attn.output_projection[2].weight)
@@ -51,7 +61,7 @@ def initialize_colqwen_with_latent_attn():
     model.save_pretrained("./models/colqwen2-latent-attn-base")
 
     model = ColQwen2.from_pretrained(
-        "./models/colqwen2-latent-attn-base", num_latent_vectors=512
+        "./models/colqwen2-latent-attn-base",
     )
     print(model)
 
@@ -72,21 +82,24 @@ def initialize_biqwen_with_latent_attn():
     print(model)
 
 
-# initialize_biqwen_with_latent_attn()
-
-base = ColQwen2.from_pretrained(
-    "./models/colqwen2-latent-attn-base",
-    num_latent_vectors=512,
-)
-model = ColQwen2.from_pretrained(
-    "./models/colqwen2-latent-attn_lora32_bsz64x1_lr5e-4/checkpoint-2200",
-    num_latent_vectors=512,
-)
-w1 = base.latent_output_attn.output_projection[0].weight
-w2 = model.latent_output_attn.output_projection[0].weight
-diff = w2 - w1
-print(diff.abs().max().item())
-print(diff.abs().min().item())
+initialize_colqwen_with_latent_attn()
+# BiQwen2.from_pretrained(
+#     "./models/biqwen2-latent-attn_lora32_bsz64x1_lr5e-4/checkpoint-100",
+#     num_latent_vectors=512,
+# )
+# base = ColQwen2.from_pretrained(
+#     "./models/colqwen2-latent-attn-base",
+#     num_latent_vectors=512,
+# )
+# model = ColQwen2.from_pretrained(
+#     "./models/colqwen2-latent-attn_lora32_bsz64x1_lr5e-4/checkpoint-2200",
+#     num_latent_vectors=512,
+# )
+# w1 = base.latent_output_attn.output_projection[0].weight
+# w2 = model.latent_output_attn.output_projection[0].weight
+# diff = w2 - w1
+# print(diff.abs().max().item())
+# print(diff.abs().min().item())
 # t = torch.tensor([[11, 22], [33, 44]], dtype=torch.float)
 # m = torch.tensor([1, 3, 4])
 # print(t[m].unsqueeze(0))
