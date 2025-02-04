@@ -6,25 +6,39 @@ from transformers.models.qwen2_vl import Qwen2VLConfig, Qwen2VLForConditionalGen
 from colpali_engine.models.utils.latent_attn_module import LatentOutputAttn
 
 
+class BiQwen2Config(Qwen2VLConfig):
+    def __init__(
+        self,
+        latent_attn_num_vectors=0,
+        latent_attn_hidden_size=1536,
+        latent_attn_intermediate_size=8960,
+        latent_attn_output_size=1536,
+        latent_attn_num_heads=12,
+        mean_pooling=False,
+        **kwargs,
+    ):
+        self.latent_attn_num_vectors = latent_attn_num_vectors
+        self.latent_attn_hidden_size = latent_attn_hidden_size
+        self.latent_attn_intermediate_size = latent_attn_intermediate_size
+        self.latent_attn_output_size = latent_attn_output_size
+        self.latent_attn_num_heads = latent_attn_num_heads
+        self.mean_pooling = mean_pooling
+        super().__init__(**kwargs)
+
+
 class BiQwen2(Qwen2VLForConditionalGeneration):
     """
     ColQwen2 model implementation from the "ColPali: Efficient Document Retrieval with Vision Language Models" paper.
     """
 
     main_input_name: ClassVar[str] = "doc_input_ids"  # transformers-related
+    confif_class = BiQwen2Config
 
-    def __init__(self, config: Qwen2VLConfig, num_latent_vectors=0, mean_pooling=False):
+    def __init__(self, config: Qwen2VLConfig):
         super().__init__(config=config)
         self.padding_side = "left"
-        self.num_latent_vectors = num_latent_vectors
-        self.mean_pooling = mean_pooling
-        if self.num_latent_vectors:
-            self.latent_output_attn = LatentOutputAttn(
-                self.num_latent_vectors,
-                self.config.hidden_size,
-                self.config.intermediate_size,
-                self.config.num_attention_heads,
-            )
+        if self.config.latent_attn_num_vectors:
+            self.latent_output_attn = LatentOutputAttn(self.config)
         self.post_init()
 
     def inner_forward(
@@ -115,16 +129,16 @@ class BiQwen2(Qwen2VLForConditionalGeneration):
             use_cache=False,
             output_hidden_states=True,
         )  # (batch_size, sequence_length, hidden_size)
-        if self.num_latent_vectors:
+        if self.config.latent_attn_num_vectors:
             last_hidden_states = self.latent_output_attn(
                 last_hidden_states, kwargs["attention_mask"]
             )
-            if self.mean_pooling:
+            if self.config.mean_pooling:
                 proj = torch.mean(last_hidden_states, dim=1)
             else:
                 proj = last_hidden_states[:, -1, :]
         else:
-            if self.mean_pooling:
+            if self.config.mean_pooling:
                 proj = torch.sum(
                     last_hidden_states * kwargs["attention_mask"].unsqueeze(-1), dim=1
                 ) / torch.sum(kwargs["attention_mask"], dim=1, keepdim=True)
