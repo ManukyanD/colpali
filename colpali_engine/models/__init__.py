@@ -9,3 +9,4 @@ from .qwen2 import (
     ColStella,
     ColStellaProcessor,
 )
+from .qwen2_5 import ColQwen2_5, ColQwen2_5_Processor, BiQwen2_5_Processor
