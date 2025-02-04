@@ -133,18 +133,13 @@ class BiQwen2(Qwen2VLForConditionalGeneration):
             last_hidden_states = self.latent_output_attn(
                 last_hidden_states, kwargs["attention_mask"]
             )
-            if self.config.mean_pooling:
-                proj = torch.mean(last_hidden_states, dim=1)
-            else:
-                proj = last_hidden_states[:, -1, :]
+        if self.config.mean_pooling:
+            proj = torch.sum(
+                last_hidden_states * kwargs["attention_mask"].unsqueeze(-1), dim=1
+            ) / torch.sum(kwargs["attention_mask"], dim=1, keepdim=True)
         else:
-            if self.config.mean_pooling:
-                proj = torch.sum(
-                    last_hidden_states * kwargs["attention_mask"].unsqueeze(-1), dim=1
-                ) / torch.sum(kwargs["attention_mask"], dim=1, keepdim=True)
-            else:
-                # take the last hidden state
-                proj = last_hidden_states[:, -1, :]
+            # take the last hidden state
+            proj = last_hidden_states[:, -1, :]
 
         proj = proj / proj.norm(dim=-1, keepdim=True)
         return proj
