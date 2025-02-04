@@ -15,11 +15,14 @@ from transformers import (
     AutoConfig,
     Qwen2VLImageProcessor,
     BertModel,
+    Qwen2_5_VLForConditionalGeneration,
 )
 
 from colpali_engine.models.qwen2.colstella.processing_colstella import (
     ColStellaProcessor,
 )
+from colpali_engine.models.qwen2_5.colqwen2_5.modeling_colqwen2_5 import ColQwen2_5
+from peft import PeftModel
 
 
 def initialize_col_stella():
@@ -82,11 +85,23 @@ def initialize_biqwen_with_latent_attn():
     print(model)
 
 
-initialize_colqwen_with_latent_attn()
-# BiQwen2.from_pretrained(
-#     "./models/biqwen2-latent-attn_lora32_bsz64x1_lr5e-4/checkpoint-100",
-#     num_latent_vectors=512,
-# )
+def initialize_colqwen2_5_biencoder():
+    base = ColQwen2_5.from_pretrained("Qwen/Qwen2.5-VL-3B-Instruct")
+    model = PeftModel.from_pretrained(
+        base,
+        "Metric-AI/colqwen2.5-3b-multilingual",
+        subfolder="checkpoint-1800",
+        is_trainable=False,
+    )
+    print(model)
+    model = model.merge_and_unload()
+    print(model)
+    model.save_pretrained("./models/colqwen2.5-biencoder-base")
+
+
+initialize_colqwen2_5_biencoder()
+
+
 # base = ColQwen2.from_pretrained(
 #     "./models/colqwen2-latent-attn-base",
 #     num_latent_vectors=512,

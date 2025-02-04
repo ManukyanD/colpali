@@ -18,6 +18,7 @@ class ColQwen2Config(Qwen2VLConfig):
         latent_attn_intermediate_size=8960,
         latent_attn_output_size=1536,
         latent_attn_num_heads=12,
+        biencoder_type=None,
         **kwargs,
     ):
         self.output_projection = output_projection
@@ -26,6 +27,7 @@ class ColQwen2Config(Qwen2VLConfig):
         self.latent_attn_intermediate_size = latent_attn_intermediate_size
         self.latent_attn_output_size = latent_attn_output_size
         self.latent_attn_num_heads = latent_attn_num_heads
+        self.biencoder_type = biencoder_type
         super().__init__(**kwargs)
 
 
@@ -145,18 +147,20 @@ class ColQwen2(Qwen2VLForConditionalGeneration):
                 last_hidden_states, kwargs["attention_mask"]
             )
         if self.config.output_projection:
-            last_hidden_states = self.custom_text_proj(
-                last_hidden_states
-            )  # (batch_size, sequence_length, dim)
+            # (batch_size, sequence_length, dim)
+            last_hidden_states = self.custom_text_proj(last_hidden_states)
 
-        # L2 normalization
-
-        proj = torch.nn.functional.normalize(
-            last_hidden_states, p=2, dim=-1
-        )  # (batch_size, sequence_length, dim)
-        proj = proj * kwargs["attention_mask"].unsqueeze(
-            -1
-        )  # (batch_size, sequence_length, dim)
+        if self.config.biencoder_type == "mean_pooling":
+            proj = torch.sum(
+                last_hidden_states * kwargs["attention_mask"].unsqueeze(-1), dim=1
+            ) / torch.sum(kwargs["attention_mask"], dim=1, keepdim=True)
+        elif self.config.biencoder_type == "last_hidden_state":
+            proj = last_hidden_states[:, -1, :]
+        else:
+            # (batch_size, sequence_length, dim)
+            proj = proj * kwargs["attention_mask"].unsqueeze(-1)
+        # (batch_size, sequence_length, dim)
+        proj = torch.nn.functional.normalize(proj, p=2, dim=-1)
         return proj
 
     @property

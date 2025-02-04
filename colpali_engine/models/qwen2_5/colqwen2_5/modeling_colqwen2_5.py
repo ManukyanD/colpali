@@ -8,6 +8,16 @@ from transformers.models.qwen2_5_vl import (
 )
 
 
+class ColQwen2_5_Config(Qwen2_5_VLConfig):
+    def __init__(
+        self,
+        biencoder_type=None,
+        **kwargs,
+    ):
+        self.biencoder_type = biencoder_type
+        super().__init__(**kwargs)
+
+
 class ColQwen2_5(Qwen2_5_VLForConditionalGeneration):  # noqa: N801
     """
     ColQwen2.5 model implementation, following the achitecture from the article "ColPali: Efficient Document Retrieval
@@ -15,6 +25,7 @@ class ColQwen2_5(Qwen2_5_VLForConditionalGeneration):  # noqa: N801
     """
 
     main_input_name: ClassVar[str] = "doc_input_ids"  # transformers-related
+    config_class = ColQwen2_5_Config
 
     def __init__(self, config: Qwen2_5_VLConfig):
         super().__init__(config=config)
@@ -116,13 +127,16 @@ class ColQwen2_5(Qwen2_5_VLForConditionalGeneration):  # noqa: N801
             last_hidden_states
         )  # (batch_size, sequence_length, dim)
 
-        # L2 normalization
-        proj = proj / proj.norm(
-            dim=-1, keepdim=True
-        )  # (batch_size, sequence_length, dim)
-        proj = proj * kwargs["attention_mask"].unsqueeze(
-            -1
-        )  # (batch_size, sequence_length, dim)
+        if self.config.biencoder_type == "mean_pooling":
+            proj = torch.sum(
+                proj * kwargs["attention_mask"].unsqueeze(-1), dim=1
+            ) / torch.sum(kwargs["attention_mask"], dim=1, keepdim=True)
+        elif self.config.biencoder_type == "last_hidden_state":
+            proj = proj[:, -1, :]
+        else:
+            proj = proj * kwargs["attention_mask"].unsqueeze(-1)
+
+        proj = torch.nn.functional.normalize(proj, p=2, dim=-1)
         return proj
 
     @property

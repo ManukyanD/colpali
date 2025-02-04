@@ -33,4 +33,4 @@ def main(config_file: Path) -> None:
 
 
 if __name__ == "__main__":
-    main("./scripts/configs/qwen2/train_colqwen2_latent_attn_model.yaml")
+    main("./scripts/configs/qwen2/train_colqwen2_5_biencoder_model.yaml")
