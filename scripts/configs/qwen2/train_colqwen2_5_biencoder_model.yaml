@@ -1,6 +1,6 @@
 config:
   (): colpali_engine.trainer.colmodel_training.ColModelTrainingConfig
-  output_dir: !path ../../../models/colqwen2.5-biencoder_lora8_bsz64x1_lr5e-4
+  output_dir: !path ../../../models/colqwen2.5-biencoder_lora32_bsz64x4_lr5e-4
   wandb_project: "Davit"
   processor:
     (): colpali_engine.utils.transformers_wrappers.AllPurposeWrapper
@@ -41,7 +41,7 @@ config:
     gradient_checkpointing: true
     gradient_checkpointing_kwargs: { "use_reentrant": false }
     # 6 x 8 gpus = 48 batch size
-    # gradient_accumulation_steps: 4
+    gradient_accumulation_steps: 4
     per_device_eval_batch_size: 64
     eval_strategy: "steps"
     dataloader_num_workers: 8
@@ -54,13 +54,13 @@ config:
     save_total_limit: null
     resume_from_checkpoint: false
     report_to: "wandb"
-    run_name: "colqwen2.5-biencoder_lora8_bsz64x1_lr5e-4"
+    run_name: "colqwen2.5-biencoder_lora32_bsz64x4_lr5e-4"
 
     # optim: "paged_adamw_8bit"
   peft_config:
     (): peft.LoraConfig
-    r: 8
-    lora_alpha: 8
+    r: 32
+    lora_alpha: 32
     lora_dropout: 0
     init_lora_weights: "gaussian"
     bias: "none"
