@@ -59,6 +59,7 @@ pip install colpali-engine
 ```python
 import torch
 from PIL import Image
+from transformers.utils.import_utils import is_flash_attn_2_available
 
 from colpali_engine.models import ColQwen2, ColQwen2Processor
 
@@ -68,6 +69,7 @@ model = ColQwen2.from_pretrained(
     model_name,
     torch_dtype=torch.bfloat16,
     device_map="cuda:0",  # or "mps" if on Apple Silicon
+    attn_implementation="flash_attention_2" if is_flash_attn_2_available() else None,
 ).eval()
 
 processor = ColQwen2Processor.from_pretrained(model_name)
@@ -78,8 +80,8 @@ images = [
     Image.new("RGB", (16, 16), color="black"),
 ]
 queries = [
-    "Is attention really all you need?",
-    "Are Benjamin, Antoine, Merve, and Jo best friends?",
+    "What is the organizational structure for our R&D department?",
+    "Can you provide a breakdown of last year’s financial performance?",
 ]
 
 # Process the inputs
@@ -92,17 +94,11 @@ with torch.no_grad():
     query_embeddings = model(**batch_queries)
 
 scores = processor.score_multi_vector(query_embeddings, image_embeddings)
-
 ```
-
-### Inference
-
-You can find an example [here](https://github.com/illuin-tech/colpali/blob/main/scripts/infer/run_inference_with_python.py). 
-
 
 ### Benchmarking
 
-To benchmark ColPali to reproduce the results on the [ViDoRe leaderboard](https://huggingface.co/spaces/vidore/vidore-leaderboard), it is recommended to use the [`vidore-benchmark`](https://github.com/illuin-tech/vidore-benchmark) package.
+To benchmark ColPali on the [ViDoRe leaderboard](https://huggingface.co/spaces/vidore/vidore-leaderboard), use the [`vidore-benchmark`](https://github.com/illuin-tech/vidore-benchmark) package.
 
 ### Interpretability with similarity maps
 
@@ -184,6 +180,30 @@ for idx, (fig, ax) in enumerate(plots):
 ```
 
 For a more detailed example, you can refer to the interpretability notebooks from the [ColPali Cookbooks 👨🏻‍🍳](https://github.com/tonywu71/colpali-cookbooks) repository.
+
+### Token pooling
+
+[Token pooling](https://doi.org/10.48550/arXiv.2409.14683) is a CRUDE-compliant method (document addition/deletion-friendly) that aims at reducing the sequence length of multi-vector embeddings. For ColPali, many image patches share redundant information, e.g. white background patches. By pooling these patches together, we can reduce the amount of embeddings while retaining most of the page's signal. Retrieval performance with hierarchical mean token pooling on image embeddings can be found in the [ColPali paper](https://doi.org/10.48550/arXiv.2407.01449). In our experiments, we found that a pool factor of 3 offered the optimal trade-off: the total number of vectors is reduced by $66.7\%$ while $97.8\%$ of the original performance is maintained.
+
+To use token pooling, you can use the `HierarchicalEmbeddingPooler` class from the `colpali-engine` package:
+
+```python
+import torch
+
+from colpali_engine.compression.token_pooling import HierarchicalTokenPooler
+
+# Dummy embeddings
+list_embeddings = [
+    torch.rand(10, 768),
+    torch.rand(20, 768),
+]
+
+# Define the pooler with the desired level of compression
+pooler = HierarchicalTokenPooler(pool_factor=2)
+
+# Pool the embeddings
+outputs = pooler.pool_embeddings(list_embeddings)
+```
 
 ### Training
 
