@@ -130,9 +130,9 @@ class ColModelTraining:
             print("Training with hard negatives")
         else:
             print("Training with in-batch negatives")
-        for name, param in self.model.named_parameters():
-            if param.requires_grad == True:
-                print("Trainable: ", name)
+        # for name, param in self.model.named_parameters():
+        #     if param.requires_grad == True:
+        #         print("Trainable: ", name)
 
         os.environ["WANDB_PROJECT"] = self.config.wandb_project
         trainer = ContrastiveTrainer(
@@ -153,7 +153,7 @@ class ColModelTraining:
         )
         print_summary(result)
 
-    def eval_dataset(self, test_dataset):
+    def eval_dataset(self, test_dataset, test_name):
         self.model.eval()
 
         idx_with_query = [
@@ -229,7 +229,9 @@ class ColModelTraining:
                         qs.extend(list(torch.unbind(query.to("cpu"))))
 
         print("Embeddings computed, evaluating")
-        scores = self.config.processor.score(qs, ps, device=self.model.device)
+        scores = self.config.processor.score(
+            qs, ps, device=self.model.device, dataset_name=test_name
+        )
         # scores is 2d array of shape (n_queries, n_docs)
         # turn it into a dict
         results = {}
@@ -250,7 +252,7 @@ class ColModelTraining:
         all_metrics = {}
         try:
             print("Evaluating on validation set")
-            metrics = self.eval_dataset(self.dataset["test"])
+            metrics = self.eval_dataset(self.dataset["test"], "validation")
             print(f"Metrics for validation set: {metrics}")
             all_metrics["validation_set"] = metrics
         except Exception as e:
@@ -268,7 +270,7 @@ class ColModelTraining:
             ) in self.config.eval_dataset_loader.items():
                 print(f"Evaluating {test_name}")
                 test_ds = test_dataset_loading_func()
-                metrics = self.eval_dataset(test_ds)
+                metrics = self.eval_dataset(test_ds, test_name)
                 all_metrics[test_name] = metrics
                 print(f"Metrics for {test_name}: {metrics}")
 
@@ -284,6 +286,8 @@ class ColModelTraining:
             x: all_metrics[x]["ndcg_at_5"] for x in all_metrics if x != "validation_set"
         }
         all_metrics["average_ndcg_at_5"] = np.mean(list(all_metrics.values()))
+        with open("results.json", "w") as f:
+            json.dump(all_metrics, f)
         return all_metrics
 
     def save(self, config_file):

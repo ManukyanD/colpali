@@ -1,0 +1,13 @@
+{
+    "syntheticDocQA_energy": 0.96861,
+    "syntheticDocQA_healthcare_industry": 0.98393,
+    "syntheticDocQA_artificial_intelligence_test": 0.99431,
+    "syntheticDocQA_government_reports": 0.97286,
+    "infovqa_subsampled": 0.91955,
+    "docvqa_subsampled": 0.59734,
+    "arxivqa_subsampled": 0.93101,
+    "tabfquad_subsampled": 0.89996,
+    "tatdqa": 0.80089,
+    "shift_project": 0.85468,
+    "average_ndcg_at_5": 0.892314
+}

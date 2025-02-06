@@ -23,6 +23,7 @@ from colpali_engine.models.qwen2.colstella.processing_colstella import (
 )
 from colpali_engine.models.qwen2_5.colqwen2_5.modeling_colqwen2_5 import ColQwen2_5
 from peft import PeftModel
+from datasets import load_dataset
 
 
 def initialize_col_stella():
@@ -99,7 +100,7 @@ def initialize_colqwen2_5_biencoder():
     model.save_pretrained("./models/colqwen2.5-biencoder-base")
 
 
-initialize_colqwen2_5_biencoder()
+# initialize_colqwen2_5_biencoder()
 
 
 # base = ColQwen2.from_pretrained(
@@ -130,3 +131,8 @@ initialize_colqwen2_5_biencoder()
 # x = torch.nan_to_num(x, nan=0.0)
 # x.backward()
 # print(t.grad)
+t1 = torch.ones((3))
+t2 = torch.ones((4))
+t3 = torch.ones((5))
+t = torch.nn.utils.rnn.pad_sequence((t1, t2, t3), batch_first=True, padding_value=0)
+print(t)
