@@ -37,6 +37,7 @@ class ColQwen2_5(Qwen2_5_VLForConditionalGeneration):  # noqa: N801
         super().__init__(config=config)
         self.dim = 128
         self.custom_text_proj = nn.Linear(self.model.config.hidden_size, self.dim)
+        self.trainable_pca = None
         if self.config.pca_out_size is not None:
             self.trainable_pca = TrainablePCA(self.config)
         self.padding_side = "left"
