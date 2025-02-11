@@ -1,4 +1,5 @@
 import json
+from huggingface_hub import TableQuestionAnsweringOutputElement
 import multiprocess as mp
 import torch
 from tqdm import tqdm
@@ -123,7 +124,21 @@ def initialize_colqwen2_5_split_merge():
     model.save_pretrained("./models/colqwen2.5-split-merge-base")
 
 
-initialize_colqwen2_5_split_merge()
+def initialize_colqwen2_5_pca():
+    base = ColQwen2_5.from_pretrained("Qwen/Qwen2.5-VL-3B-Instruct")
+    model = PeftModel.from_pretrained(
+        base,
+        "Metric-AI/colqwen2.5-3b-multilingual",
+        subfolder="checkpoint-1800",
+        is_trainable=False,
+    )
+    print(model)
+    model = model.merge_and_unload()
+    print(model)
+    model.save_pretrained("./models/colqwen2.5-pca-base")
+
+
+# initialize_colqwen2_5_pca()
 # query_dataset = dataset.select([*range(10)])
 # queries = [example["query"] for example in query_dataset]
 
@@ -324,6 +339,22 @@ def merge_hypothetical_answers():
 # img_embeddings = model.custom_text_proj(img_embeddings)
 # print(img_embeddings.shape)
 
+
 # query_embeddings = torch.nn.functional.normalize(query_embeddings, p=2, dim=-1)
 # img_embeddings = torch.nn.functional.normalize(img_embeddings, p=2, dim=-1)
 # print(torch.matmul(query_embeddings, img_embeddings.T))
+def add_average_score(path="./results.json", target="./results.json"):
+    with open(path, "r") as f:
+        res = json.load(f)
+
+    sum = 0
+    count = 0
+    for key, val in res.items():
+        if key != "validation_set":
+            sum += val["ndcg_at_5"]
+            count += 1
+    print(sum / count)
+    print(count)
+    res["average_ndcg_at_5"] = sum / count
+    with open(target, "w") as f:
+        json.dump(res, f)

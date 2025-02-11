@@ -7,14 +7,20 @@ from transformers.models.qwen2_5_vl import (
     Qwen2_5_VLForConditionalGeneration,
 )
 
+from colpali_engine.models.utils.trainable_pca import TrainablePCA
+
 
 class ColQwen2_5_Config(Qwen2_5_VLConfig):
     def __init__(
         self,
         biencoder_type=None,
+        pca_in_size=None,
+        pca_out_size=None,
         **kwargs,
     ):
         self.biencoder_type = biencoder_type
+        self.pca_in_size = pca_in_size
+        self.pca_out_size = pca_out_size
         super().__init__(**kwargs)
 
 
@@ -31,6 +37,8 @@ class ColQwen2_5(Qwen2_5_VLForConditionalGeneration):  # noqa: N801
         super().__init__(config=config)
         self.dim = 128
         self.custom_text_proj = nn.Linear(self.model.config.hidden_size, self.dim)
+        if self.config.pca_out_size is not None:
+            self.trainable_pca = TrainablePCA(self.config)
         self.padding_side = "left"
         self.post_init()
 
@@ -127,6 +135,9 @@ class ColQwen2_5(Qwen2_5_VLForConditionalGeneration):  # noqa: N801
             last_hidden_states
         )  # (batch_size, sequence_length, dim)
 
+        if self.trainable_pca:
+            loss, proj = self.trainable_pca(proj, kwargs["attention_mask"])
+
         if self.config.biencoder_type == "mean_pooling":
             proj = torch.sum(
                 proj * kwargs["attention_mask"].unsqueeze(-1), dim=1
@@ -137,6 +148,8 @@ class ColQwen2_5(Qwen2_5_VLForConditionalGeneration):  # noqa: N801
             proj = proj * kwargs["attention_mask"].unsqueeze(-1)
 
         proj = torch.nn.functional.normalize(proj, p=2, dim=-1)
+        if self.trainable_pca:
+            return loss, proj
         return proj
 
     @property

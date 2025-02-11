@@ -5,10 +5,17 @@ import wandb
 
 class ContrastiveTrainer(Trainer):
     def __init__(
-        self, loss_func, is_vision_model, eval_functions=None, *args, **kwargs
+        self,
+        loss_func,
+        is_vision_model,
+        eval_functions=None,
+        additional_loss_coeff=0.0,
+        *args,
+        **kwargs,
     ):
         super().__init__(*args, **kwargs)
         self.loss_func = loss_func
+        self.additional_loss_coeff = additional_loss_coeff
         self.is_vision_model = (
             is_vision_model  # Unused argument, will be removed in 0.4.0
         )
@@ -17,19 +24,26 @@ class ContrastiveTrainer(Trainer):
     def compute_loss(
         self, model, inputs, return_outputs=False, num_items_in_batch=None
     ):
-        query_outputs = model(
+        query_model_output = model(
             input_ids=inputs["query_input_ids"],
             attention_mask=inputs["query_attention_mask"],
         )
+        q_loss, query_outputs = self.interpret_model_output(query_model_output)
+
         # feed only kwargs with 'doc_' prefix
-        doc_outputs = model(
+        doc_model_output = model(
             **{k[4:]: v for k, v in inputs.items() if k.startswith("doc")}
         )
+        doc_loss, doc_outputs = self.interpret_model_output(doc_model_output)
         if "neg_doc_input_ids" in inputs:
-            neg_doc_outputs = model(
+            neg_doc_model_output = model(
                 **{k[8:]: v for k, v in inputs.items() if k.startswith("neg_doc")}
             )
+            neg_doc_loss, neg_doc_outputs = self.interpret_model_output(
+                neg_doc_model_output
+            )
             loss = self.loss_func(query_outputs, doc_outputs, neg_doc_outputs)
+            loss += self.additional_loss_coeff * (q_loss + doc_loss + neg_doc_loss)
             return (
                 (loss, (query_outputs, doc_outputs, neg_doc_outputs))
                 if return_outputs
@@ -37,7 +51,16 @@ class ContrastiveTrainer(Trainer):
             )
 
         loss = self.loss_func(query_outputs, doc_outputs)
+        loss += self.additional_loss_coeff * (q_loss + doc_loss)
         return (loss, (query_outputs, doc_outputs)) if return_outputs else loss
+
+    def interpret_model_output(self, output):
+        if type(output) == tuple:
+            loss, embeds = output
+        else:
+            loss = torch.tensor(0, requires_grad=False)
+            embeds = output
+        return loss, embeds
 
     def prediction_step(self, model, inputs, prediction_loss_only, ignore_keys=True):
         """This function is used to generate predictions and return the loss for the given inputs."""
@@ -48,21 +71,29 @@ class ContrastiveTrainer(Trainer):
 
         with torch.no_grad():
             # feed only kwargs with 'doc_' prefix
-            doc_outputs = model(
+            doc_model_output = model(
                 **{k[4:]: v for k, v in inputs.items() if k.startswith("doc")}
             )
-            query_outputs = model(
+            doc_loss, doc_outputs = self.interpret_model_output(doc_model_output)
+
+            query_model_output = model(
                 input_ids=inputs["query_input_ids"],
                 attention_mask=inputs["query_attention_mask"],
             )
+            q_loss, query_outputs = self.interpret_model_output(query_model_output)
             if "neg_doc_input_ids" in inputs:
-                neg_doc_outputs = model(
+                neg_doc_model_output = model(
                     **{k[8:]: v for k, v in inputs.items() if k.startswith("neg_doc")}
                 )
+                neg_doc_loss, neg_doc_outputs = self.interpret_model_output(
+                    neg_doc_model_output
+                )
                 loss = self.loss_func(query_outputs, doc_outputs, neg_doc_outputs)
+                loss += self.additional_loss_coeff * (q_loss + doc_loss + neg_doc_loss)
                 return loss, None, None
 
             loss = self.loss_func(query_outputs, doc_outputs)
+            loss += self.additional_loss_coeff * (q_loss + doc_loss)
             return loss, None, None
 
     def log_metrics(self, metrics):

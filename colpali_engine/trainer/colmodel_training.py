@@ -2,6 +2,8 @@ from gc import callbacks
 import json
 import os
 from dataclasses import dataclass
+from re import S
+import re
 from typing import Callable, Dict, Optional, Tuple
 
 import numpy as np
@@ -43,6 +45,8 @@ class ColModelTrainingConfig:
     dataset_loading_func: Optional[Callable] = None
     eval_dataset_loader: Optional[Dict[str, Callable]] = None
     pretrained_peft_model_name_or_path: Optional[str] = None
+    trainable_layers: Optional[str] = None
+    additional_loss_coeff: Optional[float] = 0.0
 
     def __post_init__(self):
         """
@@ -94,6 +98,11 @@ class ColModelTrainingConfig:
                     print(
                         f"Adapter already loaded from {self.pretrained_peft_model_name_or_path}. Not overwriting."
                     )
+        if self.peft_config is None and self.trainable_layers is not None:
+            pattern = re.compile(self.trainable_layers)
+            for name, param in self.model.named_parameters():
+                if not pattern.match(name):
+                    param.requires_grad = False
 
     print_gpu_utilization()
 
@@ -144,6 +153,7 @@ class ColModelTraining:
             loss_func=self.config.loss_func,
             is_vision_model=self.config.processor is not None,
             eval_functions=[self.eval],
+            additional_loss_coeff=self.config.additional_loss_coeff,
         )
 
         trainer.args.remove_unused_columns = False
@@ -218,6 +228,8 @@ class ColModelTraining:
                             if k.startswith("doc")
                         }
                     )
+                    if type(doc) == tuple:
+                        doc_loss, doc = doc
                     ps.extend(list(torch.unbind(doc.to("cpu"))))
 
                     if "query_input_ids" in batch:
@@ -225,6 +237,8 @@ class ColModelTraining:
                             input_ids=batch["query_input_ids"].to(device),
                             attention_mask=batch["query_attention_mask"].to(device),
                         )
+                        if type(query) == tuple:
+                            q_loss, query = query
                         # variable len
                         qs.extend(list(torch.unbind(query.to("cpu"))))
 
