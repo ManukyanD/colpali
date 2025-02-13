@@ -245,16 +245,16 @@ def load_docvqa_dataset() -> DatasetDict:
 def load_mixed_multiL_train_set() -> DatasetDict:
 
     spanish_dataset = load_dataset(
-        "llamaindex/vdr-multilingual-train", "es", split="train", num_proc=15
+        "llamaindex/vdr-multilingual-train", "es", split="train", num_proc=50
     ).select(range(58738))
     italian_dataset = load_dataset(
-        "llamaindex/vdr-multilingual-train", "it", split="train", num_proc=15
+        "llamaindex/vdr-multilingual-train", "it", split="train", num_proc=50
     ).select(range(54942))
     german_dataset = load_dataset(
-        "llamaindex/vdr-multilingual-train", "de", split="train", num_proc=15
+        "llamaindex/vdr-multilingual-train", "de", split="train", num_proc=50
     ).select(range(58217))
     french_dataset = load_dataset(
-        "llamaindex/vdr-multilingual-train", "fr", split="train", num_proc=15
+        "llamaindex/vdr-multilingual-train", "fr", split="train", num_proc=50
     ).select(range(55270))
     multi_ling_tr = concatenate_datasets(
         [spanish_dataset, italian_dataset, german_dataset, french_dataset]
@@ -269,7 +269,7 @@ def load_mixed_multiL_train_set() -> DatasetDict:
             data_files=shard_list,
             split="train",
             verification_mode=VerificationMode.NO_CHECKS,
-            num_proc=15,
+            num_proc=50,
         ),
     )
     visrag_synth = visrag_synth_orig.select_columns(["image", "query"])
@@ -279,7 +279,7 @@ def load_mixed_multiL_train_set() -> DatasetDict:
     visrag_vqa_orig = cast(
         DatasetDict,
         load_dataset(
-            "openbmb/VisRAG-Ret-Train-In-domain-data", split="train", num_proc=15
+            "openbmb/VisRAG-Ret-Train-In-domain-data", split="train", num_proc=50
         ),
     )
     visrag_vqa = visrag_vqa_orig.select_columns(["image", "query"])
@@ -292,7 +292,7 @@ def load_mixed_multiL_train_set() -> DatasetDict:
             "Metric-AI/rag_docmatix_100k",
             data_files="data/train-*.parquet",
             split="train",
-            num_proc=15,
+            num_proc=50,
         ),
     )
     docmatix = docmatix_orig.select_columns(["image", "query"])
@@ -301,21 +301,21 @@ def load_mixed_multiL_train_set() -> DatasetDict:
 
     colpali_orig = cast(
         DatasetDict,
-        load_dataset("vidore/colpali_train_set", split="train", num_proc=15),
+        load_dataset("vidore/colpali_train_set", split="train", num_proc=50),
     )
     colpali = colpali_orig.select_columns(["image", "query"])
     colpali_eval = colpali.select(range(250))
     colpali_tr = colpali.select(range(250, len(colpali)))
 
     english_dataset = load_dataset(
-        "llamaindex/vdr-multilingual-train", "en", split="train", num_proc=15
+        "llamaindex/vdr-multilingual-train", "en", split="train", num_proc=50
     ).select(range(53512))
     english = english_dataset.select_columns(["image", "query"])
     english_eval = english.select(range(250))
     english_tr = english.select(range(250, len(english)))
 
     tabfquad_dataset = load_dataset(
-        "Metric-AI/tabfquad_train_set", split="train", num_proc=15
+        "Metric-AI/tabfquad_train_set", split="train", num_proc=50
     )
     tabfquad = tabfquad_dataset.select_columns(["image", "query"])
 
@@ -340,6 +340,25 @@ def load_mixed_multiL_train_set() -> DatasetDict:
     return ds_dict
 
 
+def load_test_sets():
+    energy = load_dataset("vidore/syntheticDocQA_energy_test", num_proc=40)
+    healthcare = load_dataset(
+        "vidore/syntheticDocQA_healthcare_industry_test", num_proc=40
+    )
+    artificial_intelligence = load_dataset(
+        "vidore/syntheticDocQA_artificial_intelligence_test", num_proc=40
+    )
+    gov_reports = load_dataset(
+        "vidore/syntheticDocQA_government_reports_test", num_proc=40
+    )
+    infovqa = load_dataset("vidore/infovqa_test_subsampled", num_proc=40)
+    docvqa = load_dataset("vidore/docvqa_test_subsampled", num_proc=40)
+    arxiv = load_dataset("vidore/arxivqa_test_subsampled", num_proc=40)
+    tabfquad = load_dataset("vidore/tabfquad_test_subsampled", num_proc=40)
+    tatdqa = load_dataset("vidore/tatdqa_test", num_proc=40)
+    shift_project = load_dataset("vidore/shiftproject_test", num_proc=40)
+
+
 class TestSetFactory:
     def __init__(self, dataset_path):
         self.dataset_path = dataset_path
@@ -352,3 +371,5 @@ class TestSetFactory:
 if __name__ == "__main__":
     ds = TestSetFactory("vidore/tabfquad_test_subsampled")()
     print(ds)
+    # load_mixed_multiL_train_set()
+    # load_test_sets()
