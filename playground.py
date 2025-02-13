@@ -27,7 +27,10 @@ from transformers import (
 from colpali_engine.models.qwen2.colstella.processing_colstella import (
     ColStellaProcessor,
 )
-from colpali_engine.models.qwen2_5.colqwen2_5.modeling_colqwen2_5 import ColQwen2_5
+from colpali_engine.models.qwen2_5.colqwen2_5.modeling_colqwen2_5 import (
+    ColQwen2_5,
+    ColQwen2_5_Config,
+)
 from peft import PeftModel
 from datasets import load_dataset
 
@@ -138,7 +141,19 @@ def initialize_colqwen2_5_pca():
     model.save_pretrained("./models/colqwen2.5-pca-base")
 
 
-# initialize_colqwen2_5_pca()
+def initialize_colqwen2_5_clipped():
+    config = ColQwen2_5_Config.from_pretrained("Qwen/Qwen2.5-VL-3B-Instruct")
+    config.num_hidden_layers = 18
+
+    model = ColQwen2_5.from_pretrained("Qwen/Qwen2.5-VL-3B-Instruct", config=config)
+    print(model)
+
+    model.save_pretrained("./models/colqwen2.5-clipped-base")
+    model = ColQwen2_5.from_pretrained("./models/colqwen2.5-clipped-base")
+    print(model)
+
+
+initialize_colqwen2_5_clipped()
 # query_dataset = dataset.select([*range(10)])
 # queries = [example["query"] for example in query_dataset]
 
@@ -420,7 +435,7 @@ def decode_from_layers(id, image):
         model.model.layers.pop(-1)
 
 
-dataset = load_dataset("vidore/colpali_train_set", num_proc=40, split="train")
-id = 2
-dataset[id]["image"].save(f"./img-{id}.jpeg")
-decode_from_layers(id, dataset[id]["image"])
+# dataset = load_dataset("vidore/colpali_train_set", num_proc=40, split="train")
+# id = 2
+# dataset[id]["image"].save(f"./img-{id}.jpeg")
+# decode_from_layers(id, dataset[id]["image"])

@@ -58,7 +58,7 @@ class ColModelTrainingConfig:
 
         if self.tr_args is None:
             self.tr_args = TrainingArguments(output_dir=self.output_dir)
-        elif self.tr_args.output_dir is None:
+        else:
             self.tr_args.output_dir = self.output_dir
 
         # cast if string
@@ -139,9 +139,11 @@ class ColModelTraining:
             print("Training with hard negatives")
         else:
             print("Training with in-batch negatives")
-        for name, param in self.model.named_parameters():
-            if param.requires_grad == True:
-                print("Trainable: ", name)
+
+        if self.config.tr_args.process_index == 0:
+            for name, param in self.model.named_parameters():
+                if param.requires_grad == True:
+                    print("Trainable: ", name)
 
         os.environ["WANDB_PROJECT"] = self.config.wandb_project
         trainer = ContrastiveTrainer(

@@ -1,7 +1,13 @@
 import os
 from typing import List, Tuple, cast
 
-from datasets import Dataset, DatasetDict, concatenate_datasets, load_dataset
+from datasets import (
+    Dataset,
+    DatasetDict,
+    concatenate_datasets,
+    load_dataset,
+    VerificationMode,
+)
 
 USE_LOCAL_DATASET = os.environ.get("USE_LOCAL_DATASET", "1") == "1"
 
@@ -232,6 +238,104 @@ def load_docvqa_dataset() -> DatasetDict:
     )
 
     ds_dict = DatasetDict({"train": dataset, "test": dataset_eval})
+
+    return ds_dict
+
+
+def load_mixed_multiL_train_set() -> DatasetDict:
+
+    spanish_dataset = load_dataset(
+        "llamaindex/vdr-multilingual-train", "es", split="train", num_proc=15
+    ).select(range(58738))
+    italian_dataset = load_dataset(
+        "llamaindex/vdr-multilingual-train", "it", split="train", num_proc=15
+    ).select(range(54942))
+    german_dataset = load_dataset(
+        "llamaindex/vdr-multilingual-train", "de", split="train", num_proc=15
+    ).select(range(58217))
+    french_dataset = load_dataset(
+        "llamaindex/vdr-multilingual-train", "fr", split="train", num_proc=15
+    ).select(range(55270))
+    multi_ling_tr = concatenate_datasets(
+        [spanish_dataset, italian_dataset, german_dataset, french_dataset]
+    )
+    multi_ling_tr = multi_ling_tr.select_columns(["image", "query"])
+
+    shard_list = [f"data/train-{i:05d}-of-00326.parquet" for i in range(35)]
+    visrag_synth_orig = cast(
+        DatasetDict,
+        load_dataset(
+            "openbmb/VisRAG-Ret-Train-Synthetic-data",
+            data_files=shard_list,
+            split="train",
+            verification_mode=VerificationMode.NO_CHECKS,
+            num_proc=15,
+        ),
+    )
+    visrag_synth = visrag_synth_orig.select_columns(["image", "query"])
+    visrag_synth_eval = visrag_synth.select(range(250))
+    visrag_synth_tr = visrag_synth.select(range(250, 25250))
+
+    visrag_vqa_orig = cast(
+        DatasetDict,
+        load_dataset(
+            "openbmb/VisRAG-Ret-Train-In-domain-data", split="train", num_proc=15
+        ),
+    )
+    visrag_vqa = visrag_vqa_orig.select_columns(["image", "query"])
+    visrag_vqa_eval = visrag_vqa.select(range(250))
+    visrag_vqa_tr = visrag_vqa.select(range(250, len(visrag_vqa)))
+
+    docmatix_orig = cast(
+        DatasetDict,
+        load_dataset(
+            "Metric-AI/rag_docmatix_100k",
+            data_files="data/train-*.parquet",
+            split="train",
+            num_proc=15,
+        ),
+    )
+    docmatix = docmatix_orig.select_columns(["image", "query"])
+    docmatix_eval = docmatix.select(range(250))
+    docmatix_tr = docmatix.select(range(250, 25250))
+
+    colpali_orig = cast(
+        DatasetDict,
+        load_dataset("vidore/colpali_train_set", split="train", num_proc=15),
+    )
+    colpali = colpali_orig.select_columns(["image", "query"])
+    colpali_eval = colpali.select(range(250))
+    colpali_tr = colpali.select(range(250, len(colpali)))
+
+    english_dataset = load_dataset(
+        "llamaindex/vdr-multilingual-train", "en", split="train", num_proc=15
+    ).select(range(53512))
+    english = english_dataset.select_columns(["image", "query"])
+    english_eval = english.select(range(250))
+    english_tr = english.select(range(250, len(english)))
+
+    tabfquad_dataset = load_dataset(
+        "Metric-AI/tabfquad_train_set", split="train", num_proc=15
+    )
+    tabfquad = tabfquad_dataset.select_columns(["image", "query"])
+
+    # french_dataset = load_dataset("llamaindex/vdr-multilingual-train", "fr", split="train",num_proc=15).select(range(55270))
+    # french = french_dataset.select_columns(['image','query'])
+    # french_eval = french.select(range(250))
+    # french_tr = french.select(range(250, len(french)))
+
+    train_set = concatenate_datasets(
+        [visrag_synth_tr, visrag_vqa_tr, docmatix_tr, colpali_tr, english_tr, tabfquad]
+    ).shuffle(seed=42)
+    full_train_set = concatenate_datasets(
+        [multi_ling_tr, train_set, train_set, train_set, train_set, train_set]
+    )
+
+    test_set = concatenate_datasets(
+        [visrag_synth_eval, visrag_vqa_eval, docmatix_eval, colpali_eval, english_eval]
+    ).shuffle(seed=42)
+
+    ds_dict = DatasetDict({"train": full_train_set, "test": test_set})
 
     return ds_dict
 
