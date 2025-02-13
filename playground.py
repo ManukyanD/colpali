@@ -125,7 +125,7 @@ def initialize_colqwen2_5_split_merge():
 
 
 def initialize_colqwen2_5_pca():
-    base = ColQwen2_5.from_pretrained("Qwen/Qwen2.5-VL-3B-Instruct")
+    base = ColQwen2_5.from_pretrained("vidore/colqwen2.5-base")
     model = PeftModel.from_pretrained(
         base,
         "Metric-AI/colqwen2.5-3b-multilingual",
@@ -358,3 +358,69 @@ def add_average_score(path="./results.json", target="./results.json"):
     res["average_ndcg_at_5"] = sum / count
     with open(target, "w") as f:
         json.dump(res, f)
+
+
+# add_average_score(
+#     "./models/colqwen2.5-pca_test/results.json", "./results-pretrained.json"
+# )
+
+
+def decode_from_layers(id, image):
+    visual_prompt_prefix = "<|im_start|>user\n<|vision_start|><|image_pad|><|vision_end|>Describe the image.<|im_end|>"
+    processor = Qwen2_5_VLProcessor.from_pretrained("Qwen/Qwen2.5-VL-3B-Instruct")
+    processor.tokenizer.padding_side = "left"
+    model = Qwen2_5_VLForConditionalGeneration.from_pretrained(
+        "Qwen/Qwen2.5-VL-3B-Instruct",
+        device_map="cuda",
+        attn_implementation="flash_attention_2",
+        torch_dtype=torch.bfloat16,
+    ).eval()
+    messages = [
+        {
+            "role": "system",
+            "content": "You are a helpful assistant, whose task is to describe the image provided by the user.",
+        },
+        {
+            "role": "user",
+            "content": [
+                {"type": "image"},
+                {"type": "text", "text": "Describe the image."},
+            ],
+        },
+    ]
+    messages = processor.apply_chat_template(
+        messages,
+        add_generation_prompt=True,
+        tokenize=False,
+    )
+
+    inputs = processor(
+        text=[messages],
+        images=[image],
+        padding=True,
+        return_tensors="pt",
+    )
+    inputs = inputs.to(model.device)
+    layer_count = len(model.model.layers)
+    for i in tqdm(range(layer_count)):
+        print(len(model.model.layers))
+        with torch.no_grad():
+            generated_ids = model.generate(**inputs, max_new_tokens=512)
+        generated_ids_trimmed = [
+            out_ids[len(in_ids) :]
+            for in_ids, out_ids in zip(inputs.input_ids, generated_ids)
+        ]
+        output_text = processor.batch_decode(
+            generated_ids_trimmed,
+            skip_special_tokens=True,
+            clean_up_tokenization_spaces=False,
+        )
+        with open(f"./responses-{id}.txt", "a") as f:
+            f.write(f"{layer_count - i}) {output_text[0]}\n\n")
+        model.model.layers.pop(-1)
+
+
+dataset = load_dataset("vidore/colpali_train_set", num_proc=40, split="train")
+id = 2
+dataset[id]["image"].save(f"./img-{id}.jpeg")
+decode_from_layers(id, dataset[id]["image"])
