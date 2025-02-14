@@ -153,7 +153,18 @@ def initialize_colqwen2_5_clipped():
     print(model)
 
 
-initialize_colqwen2_5_clipped()
+def initialize_colqwen2_5_half():
+    model = ColQwen2_5.from_pretrained("Qwen/Qwen2.5-VL-3B-Instruct")
+    model.model.layers = model.model.layers.pop(slice(1, None, 2))
+    model.config.num_hidden_layers = 18
+    print(model)
+    model.save_pretrained("./models/colqwen2.5-half-base")
+
+    model = ColQwen2_5.from_pretrained("./models/colqwen2.5-half-base")
+    print(model)
+
+
+# initialize_colqwen2_5_half()
 # query_dataset = dataset.select([*range(10)])
 # queries = [example["query"] for example in query_dataset]
 
@@ -439,3 +450,4 @@ def decode_from_layers(id, image):
 # id = 2
 # dataset[id]["image"].save(f"./img-{id}.jpeg")
 # decode_from_layers(id, dataset[id]["image"])
+Qwen2_5_VLProcessor.from_pretrained("Qwen/Qwen2.5-VL-3B-Instruct")
