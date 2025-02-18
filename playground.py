@@ -164,7 +164,7 @@ def initialize_colqwen2_5_half():
     print(model)
 
 
-# initialize_colqwen2_5_half()
+# initialize_colqwen2_5_clipped()
 # query_dataset = dataset.select([*range(10)])
 # queries = [example["query"] for example in query_dataset]
 
@@ -450,4 +450,60 @@ def decode_from_layers(id, image):
 # id = 2
 # dataset[id]["image"].save(f"./img-{id}.jpeg")
 # decode_from_layers(id, dataset[id]["image"])
-Qwen2_5_VLProcessor.from_pretrained("Qwen/Qwen2.5-VL-3B-Instruct")
+
+
+def upload():
+    model = ColQwen2_5.from_pretrained("./models/colqwen2.5-clipped-base")
+    model = PeftModel.from_pretrained(
+        model,
+        "./models/colqwen2.5-clipped_lora128_bsz128x1_lr5e-4/checkpoint-1700",
+        is_trainable=False,
+    ).merge_and_unload()
+    processor = ColQwen2_5_Processor.from_pretrained(
+        "./models/colqwen2.5-clipped_lora128_bsz128x1_lr5e-4"
+    )
+    processor.push_to_hub("ManukyanD/colqwen2.5-clipped")
+    model.push_to_hub("ManukyanD/colqwen2.5-clipped")
+
+
+def print_num_of_params(model):
+    n = 0
+    for name, param in model.named_parameters():
+        n += param.numel()
+    print(n)
+    return n
+
+
+def prune(model: Qwen2_5_VLForConditionalGeneration, hidden_size):
+    if model.config.hidden_size < hidden_size:
+        raise Exception(
+            f"Hidden size {hidden_size} must be smaller than model hidden size {model.config.hidden_size} for pruning."
+        )
+    model.lm_head.weight = model.lm_head.weight[:, :hidden_size]
+    model.model.embed_tokens.weight = model.model.embed_tokens.weight[:, :hidden_size]
+    model.model.norm.weight = model.model.norm.weight[:hidden_size]
+    for layer in model.model.layers:
+        layer.input_layernorm.weight = layer.input_layernorm.weight[:hidden_size]
+        layer.post_attention_layernorm.weight = layer.post_attention_layernorm.weight[
+            :hidden_size
+        ]
+        layer.mlp.gate_proj.weight = layer.mlp.gate_proj.weight[:, :hidden_size]
+        layer.mlp.up_proj.weight = layer.mlp.up_proj.weight[:, :hidden_size]
+        layer.mlp.down_proj.weight = layer.mlp.down_proj.weight[:hidden_size, :]
+        layer.self_attn.q_proj.weight = layer.self_attn.q_proj.weight[:, :hidden_size]
+        layer.self_attn.k_proj.weight = layer.self_attn.k_proj.weight[:, :hidden_size]
+        layer.self_attn.v_proj.weight = layer.self_attn.v_proj.weight[:, :hidden_size]
+        layer.self_attn.o_proj.weight = layer.self_attn.o_proj.weight[:hidden_size, :]
+
+
+# config = ColQwen2_5_Config.from_pretrained("Metric-AI/ColQwen2.5-3b-multilingual-v1.0")
+
+model = ColQwen2_5.from_pretrained(
+    "Qwen/Qwen2.5-VL-3B-Instruct",
+    # config=config,
+    # ignore_mismatched_sizes=True,
+)
+print_num_of_params(model)
+with torch.no_grad():
+    prune(model, 1024)
+print_num_of_params(model)
