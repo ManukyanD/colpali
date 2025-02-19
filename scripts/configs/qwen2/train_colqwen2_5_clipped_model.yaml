@@ -1,17 +1,17 @@
 config:
   (): colpali_engine.trainer.colmodel_training.ColModelTrainingConfig
-  output_dir: !path ../../../models/colqwen2.5-clipped_lora128_bsz128x1_lr5e-4
+  output_dir: !path ../../../models/colqwen2.5-pretrained-clipped_lora128_bsz128x1_lr5e-4
   wandb_project: "Davit"
   processor:
     (): colpali_engine.utils.transformers_wrappers.AllPurposeWrapper
     class_to_instanciate: !ext colpali_engine.models.ColQwen2_5_Processor
-    pretrained_model_name_or_path:  "Qwen/Qwen2.5-VL-3B-Instruct"
+    pretrained_model_name_or_path: "Metric-AI/ColQwen2.5-3b-multilingual-v1.0"
     # max_length: 50
 
   model:
     (): colpali_engine.utils.transformers_wrappers.AllPurposeWrapper
     class_to_instanciate: !ext colpali_engine.models.ColQwen2_5
-    pretrained_model_name_or_path: "./models/colqwen2.5-clipped-base"
+    pretrained_model_name_or_path: "./models/colqwen2.5-pretrained-clipped-base"
     torch_dtype:  !ext torch.bfloat16
     use_cache: false
     attn_implementation: "flash_attention_2"
@@ -53,7 +53,7 @@ config:
     save_total_limit: null
     resume_from_checkpoint: false
     report_to: "wandb"
-    run_name: "colqwen2.5-clipped_lora128_bsz128x1_lr5e-4"
+    run_name: "colqwen2.5-pretrained-clipped_lora128_bsz128x1_lr5e-4"
 
     # optim: "paged_adamw_8bit"
   peft_config:

@@ -153,6 +153,21 @@ def initialize_colqwen2_5_clipped():
     print(model)
 
 
+def initialize_colqwen2_5_pretrained_clipped():
+    model = ColQwen2_5.from_pretrained("Qwen/Qwen2.5-VL-3B-Instruct")
+    model = PeftModel.from_pretrained(
+        model, "Metric-AI/ColQwen2.5-3b-multilingual-v1.0", is_trainable=False
+    ).merge_and_unload()
+
+    model.model.layers.pop(slice(18, None))
+    model.config.num_hidden_layers = 18
+    print(model)
+
+    model.save_pretrained("./models/colqwen2.5-pretrained-clipped-base")
+    model = ColQwen2_5.from_pretrained("./models/colqwen2.5-pretrained-clipped-base")
+    print(model)
+
+
 def initialize_colqwen2_5_half():
     model = ColQwen2_5.from_pretrained("Qwen/Qwen2.5-VL-3B-Instruct")
     model.model.layers = model.model.layers.pop(slice(1, None, 2))
@@ -164,6 +179,7 @@ def initialize_colqwen2_5_half():
     print(model)
 
 
+# initialize_colqwen2_5_pretrained_clipped()
 # initialize_colqwen2_5_clipped()
 # query_dataset = dataset.select([*range(10)])
 # queries = [example["query"] for example in query_dataset]
@@ -456,14 +472,14 @@ def upload():
     model = ColQwen2_5.from_pretrained("./models/colqwen2.5-clipped-base")
     model = PeftModel.from_pretrained(
         model,
-        "./models/colqwen2.5-clipped_lora128_bsz128x1_lr5e-4/checkpoint-1700",
+        "./models/colqwen2.5-clipped_lora128_bsz128x1_lr5e-4/checkpoint-1800",
         is_trainable=False,
     ).merge_and_unload()
     processor = ColQwen2_5_Processor.from_pretrained(
         "./models/colqwen2.5-clipped_lora128_bsz128x1_lr5e-4"
     )
-    processor.push_to_hub("ManukyanD/colqwen2.5-clipped")
-    model.push_to_hub("ManukyanD/colqwen2.5-clipped")
+    processor.push_to_hub("ManukyanD/colqwen2.5-clipped-checkpoint-2")
+    model.push_to_hub("ManukyanD/colqwen2.5-clipped-checkpoint-2")
 
 
 def print_num_of_params(model):
@@ -498,12 +514,12 @@ def prune(model: Qwen2_5_VLForConditionalGeneration, hidden_size):
 
 # config = ColQwen2_5_Config.from_pretrained("Metric-AI/ColQwen2.5-3b-multilingual-v1.0")
 
-model = ColQwen2_5.from_pretrained(
-    "Qwen/Qwen2.5-VL-3B-Instruct",
-    # config=config,
-    # ignore_mismatched_sizes=True,
-)
-print_num_of_params(model)
-with torch.no_grad():
-    prune(model, 1024)
-print_num_of_params(model)
+# model = ColQwen2_5.from_pretrained(
+#     "Qwen/Qwen2.5-VL-3B-Instruct",
+#     # config=config,
+#     # ignore_mismatched_sizes=True,
+# )
+# print_num_of_params(model)
+# with torch.no_grad():
+#     prune(model, 1024)
+# print_num_of_params(model)
