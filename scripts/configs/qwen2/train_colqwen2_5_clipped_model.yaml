@@ -1,17 +1,17 @@
 config:
   (): colpali_engine.trainer.colmodel_training.ColModelTrainingConfig
-  output_dir: !path ../../../models/colqwen2.5-pretrained-clipped_lora128_bsz128x1_lr5e-4
+  output_dir: !path ../../../models/colqwen2.5-clipped9_lora128_bsz210x1_lr5e-4
   wandb_project: "Davit"
   processor:
     (): colpali_engine.utils.transformers_wrappers.AllPurposeWrapper
     class_to_instanciate: !ext colpali_engine.models.ColQwen2_5_Processor
-    pretrained_model_name_or_path: "Metric-AI/ColQwen2.5-3b-multilingual-v1.0"
+    pretrained_model_name_or_path:  "Qwen/Qwen2.5-VL-3B-Instruct"
     # max_length: 50
 
   model:
     (): colpali_engine.utils.transformers_wrappers.AllPurposeWrapper
     class_to_instanciate: !ext colpali_engine.models.ColQwen2_5
-    pretrained_model_name_or_path: "./models/colqwen2.5-pretrained-clipped-base"
+    pretrained_model_name_or_path: "./models/colqwen2.5-clipped9-base"
     torch_dtype:  !ext torch.bfloat16
     use_cache: false
     attn_implementation: "flash_attention_2"
@@ -36,7 +36,7 @@ config:
     output_dir: null
     overwrite_output_dir: true
     num_train_epochs: 1
-    per_device_train_batch_size: 128
+    per_device_train_batch_size: 210
     gradient_checkpointing: true
     gradient_checkpointing_kwargs: { "use_reentrant": false }
     # 6 x 8 gpus = 48 batch size
@@ -53,7 +53,7 @@ config:
     save_total_limit: null
     resume_from_checkpoint: false
     report_to: "wandb"
-    run_name: "colqwen2.5-pretrained-clipped_lora128_bsz128x1_lr5e-4"
+    run_name: "colqwen2.5-clipped9_lora128_bsz210x1_lr5e-4"
 
     # optim: "paged_adamw_8bit"
   peft_config:

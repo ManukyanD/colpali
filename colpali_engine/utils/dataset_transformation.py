@@ -328,7 +328,19 @@ def load_mixed_multiL_train_set() -> DatasetDict:
         [visrag_synth_tr, visrag_vqa_tr, docmatix_tr, colpali_tr, english_tr, tabfquad]
     ).shuffle(seed=42)
     full_train_set = concatenate_datasets(
-        [multi_ling_tr, train_set, train_set, train_set, train_set, train_set]
+        [
+            multi_ling_tr,
+            train_set,
+            train_set.shuffle(seed=35),
+            train_set.shuffle(seed=28),
+            train_set.shuffle(seed=21),
+            train_set.shuffle(seed=14),
+            train_set.shuffle(seed=7),
+            train_set.shuffle(seed=49),
+            train_set.shuffle(seed=56),
+            train_set.shuffle(seed=63),
+            train_set.shuffle(seed=70),
+        ]
     )
 
     test_set = concatenate_datasets(

@@ -141,15 +141,15 @@ def initialize_colqwen2_5_pca():
     model.save_pretrained("./models/colqwen2.5-pca-base")
 
 
-def initialize_colqwen2_5_clipped():
+def initialize_colqwen2_5_clipped(num_layers):
     config = ColQwen2_5_Config.from_pretrained("Qwen/Qwen2.5-VL-3B-Instruct")
-    config.num_hidden_layers = 18
+    config.num_hidden_layers = num_layers
 
     model = ColQwen2_5.from_pretrained("Qwen/Qwen2.5-VL-3B-Instruct", config=config)
     print(model)
 
-    model.save_pretrained("./models/colqwen2.5-clipped-base")
-    model = ColQwen2_5.from_pretrained("./models/colqwen2.5-clipped-base")
+    model.save_pretrained(f"./models/colqwen2.5-clipped{num_layers}-base")
+    model = ColQwen2_5.from_pretrained(f"./models/colqwen2.5-clipped{num_layers}-base")
     print(model)
 
 
@@ -170,7 +170,7 @@ def initialize_colqwen2_5_pretrained_clipped():
 
 def initialize_colqwen2_5_half():
     model = ColQwen2_5.from_pretrained("Qwen/Qwen2.5-VL-3B-Instruct")
-    model.model.layers = model.model.layers.pop(slice(1, None, 2))
+    model.model.layers.pop(slice(1, None, 2))
     model.config.num_hidden_layers = 18
     print(model)
     model.save_pretrained("./models/colqwen2.5-half-base")
@@ -179,8 +179,7 @@ def initialize_colqwen2_5_half():
     print(model)
 
 
-# initialize_colqwen2_5_pretrained_clipped()
-# initialize_colqwen2_5_clipped()
+initialize_colqwen2_5_clipped(num_layers=9)
 # query_dataset = dataset.select([*range(10)])
 # queries = [example["query"] for example in query_dataset]
 
