@@ -1,7 +1,7 @@
 from pathlib import Path
 import sys
 
-sys.path.append("/home/user/colpali")
+sys.path.append("/root/colpali")
 import configue
 import typer
 
