@@ -70,15 +70,11 @@ class ColStella2_5(NewPreTrainedModel):
             inputs_embeds, *rest = self.new.embeddings(
                 unpad_inputs=self.config.unpad_inputs, input_ids=input_ids
             )
-            print("inputs_embeds", inputs_embeds.shape)
             if pixel_values is not None:
-                print(self.visual.dtype)
                 pixel_values = pixel_values.type(self.visual.dtype)
 
                 image_embeds = self.visual(pixel_values, grid_thw=image_grid_thw)
-                print("image_embeds before pooling", image_embeds.shape)
                 image_embeds = self.adaptive_avg_pooling(image_embeds)
-                print("image_embeds after pooling", image_embeds.shape)
                 image_mask = (
                     (input_ids == self.config.image_token_id)
                     .unsqueeze(-1)
@@ -136,7 +132,6 @@ class ColStella2_5(NewPreTrainedModel):
         # L2 normalization
         proj = proj / proj.norm(dim=-1, keepdim=True)
         proj = proj * kwargs["attention_mask"].unsqueeze(-1)
-        print("proj", proj.shape)
         return proj
 
     @property
