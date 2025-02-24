@@ -5,14 +5,14 @@ config:
   processor:
     (): colpali_engine.utils.transformers_wrappers.AllPurposeWrapper
     class_to_instanciate: !ext colpali_engine.models.ColStella2_5_Processor
-    pretrained_model_name_or_path:  "./models/colstella2_5_base" # "./models/paligemma-3b-mix-448"
+    pretrained_model_name_or_path:  "./models/colstella2.5_base" # "./models/paligemma-3b-mix-448"
     # num_image_tokens: 2048
     # max_length: 50
 
   model:
     (): colpali_engine.utils.transformers_wrappers.AllPurposeWrapper
     class_to_instanciate: !ext colpali_engine.models.ColStella2_5
-    pretrained_model_name_or_path: "./models/colstella2_5_base"
+    pretrained_model_name_or_path: "./models/colstella2.5_base"
     torch_dtype:  !ext torch.float
     attn_implementation: "sdpa"
     unpad_inputs: false

@@ -68,7 +68,7 @@ def initialize_col_stella():
 
 
 def initialize_col_stella2_5():
-    target_dir = "./models/colstella2_5_base"
+    target_dir = "./models/colstella2.5_base"
     img_token = "[IMG]"
     stella_model = "NovaSearch/stella_en_400M_v5"
     qwen_model = "Qwen/Qwen2.5-VL-3B-Instruct"
