@@ -22,6 +22,7 @@ from transformers import (
     Qwen2_5_VLForConditionalGeneration,
     Qwen2_5_VLProcessor,
     pipeline,
+    Qwen2_5_VLConfig,
 )
 
 from colpali_engine.models.qwen2.colstella.processing_colstella import (
@@ -179,7 +180,7 @@ def initialize_colqwen2_5_half():
     print(model)
 
 
-initialize_colqwen2_5_clipped(num_layers=9)
+# initialize_colqwen2_5_clipped(num_layers=9)
 # query_dataset = dataset.select([*range(10)])
 # queries = [example["query"] for example in query_dataset]
 
@@ -513,6 +514,7 @@ def prune(model: Qwen2_5_VLForConditionalGeneration, hidden_size):
 
 # config = ColQwen2_5_Config.from_pretrained("Metric-AI/ColQwen2.5-3b-multilingual-v1.0")
 
+
 # model = ColQwen2_5.from_pretrained(
 #     "Qwen/Qwen2.5-VL-3B-Instruct",
 #     # config=config,
@@ -522,3 +524,75 @@ def prune(model: Qwen2_5_VLForConditionalGeneration, hidden_size):
 # with torch.no_grad():
 #     prune(model, 1024)
 # print_num_of_params(model)
+def svd():
+    base = ColQwen2_5.from_pretrained("ManukyanD/colqwen2.5-clipped9")
+    model = ColQwen2_5.from_pretrained(
+        "./models/colqwen2.5-clipped9_lora128_bsz100x2_lr5e-4/checkpoint-100"
+    )
+    model_merged = PeftModel.from_pretrained(
+        ColQwen2_5.from_pretrained("ManukyanD/colqwen2.5-clipped9"),
+        "./models/colqwen2.5-clipped9_lora128_bsz100x2_lr5e-4/checkpoint-100",
+        is_trainable=False,
+    ).merge_and_unload()
+    merged_layer = model_merged.model.layers[0].mlp.down_proj.weight
+    print("merged: ", merged_layer.shape)
+    print("merged: ", merged_layer)
+
+    base_layer = base.model.layers[0].mlp.down_proj.weight
+    print("base: ", base_layer.shape)
+    print("base: ", base_layer)
+
+    diff = merged_layer - base_layer
+    print(diff)
+    U, S, Vh = torch.linalg.svd(diff, full_matrices=False)
+
+    print("U: ", U.shape)
+    print("S: ", S.shape)
+
+    print("Vh: ", Vh.shape)
+
+    U = U[:, :128]
+    S = S[:128]
+    Vh = Vh[:128, :]
+
+    b = U
+    a = torch.diag(S) @ Vh
+    # print("a: ", a.shape)
+    # print("a: ", a)
+    print("b: ", b.shape)
+    print("b: ", b)
+    # print("a @ b: ", b @ a)
+    # print(model)
+    lora_a = model.base_model.layers[0].mlp.down_proj.lora_A.default.weight
+    # print("lora A: ", lora_a.shape)
+    # print("lora A: ", lora_a)
+    lora_b = model.base_model.layers[0].mlp.down_proj.lora_B.default.weight
+    print("lora B: ", lora_b.shape)
+    print("lora B: ", lora_b)
+
+    # print("lora_A @ lora_B: ", lora_b @ lora_a)
+
+
+def compare():
+    d1 = 128
+    d2 = 8
+
+    m1 = ColQwen2_5.from_pretrained(
+        "./models/colqwen2.5-clipped9_lora128_bsz100x2_lr5e-4_collapsed/checkpoint-50"
+    )
+    l1 = m1.base_model.layers[0].mlp.down_proj.lora_A.default.weight
+
+    U1, S1, V1 = torch.linalg.svd(l1)
+    V1 = V1[:d1, :]
+
+    m2 = ColQwen2_5.from_pretrained(
+        "./models/colqwen2.5-clipped9_lora128_bsz100x2_lr5e-4_collapsed/checkpoint-100"
+    )
+    l2 = m2.base_model.layers[0].mlp.down_proj.lora_A.default.weight
+    U2, S2, V2 = torch.linalg.svd(l2)
+    V2 = V2[:d2, :]
+    phi = torch.linalg.matrix_norm(V1 @ V2.T, ord="fro") / min(d1, d2)
+    print(f"d1: {d1}, d2: {d2}, phi: {phi}")
+
+
+compare()
