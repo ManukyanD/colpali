@@ -23,6 +23,7 @@ from transformers import (
     Qwen2_5_VLProcessor,
     pipeline,
     Qwen2_5_VLConfig,
+    AutoImageProcessor,
 )
 
 from colpali_engine.models.qwen2.colstella.processing_colstella import (
@@ -37,6 +38,13 @@ from datasets import load_dataset
 
 from colpali_engine.models.qwen2_5.colqwen2_5.processing_colqwen2_5 import (
     ColQwen2_5_Processor,
+)
+from colpali_engine.models.qwen2_5.colstella2_5.modeling_colstella2_5 import (
+    ColStella2_5,
+    ColStella2_5_Config,
+)
+from colpali_engine.models.qwen2_5.colstella2_5.processing_colstella2_5 import (
+    ColStella2_5_Processor,
 )
 
 
@@ -57,6 +65,42 @@ def initialize_col_stella():
     processor = ColStellaProcessor(tokenizer=tokenizer, image_processor=qwen_processor)
     processor.save_pretrained("./models/colstella_base")
     processor = ColStellaProcessor.from_pretrained("./models/colstella_base")
+
+
+def initialize_col_stella2_5():
+    target_dir = "./models/colstella2_5_base"
+    img_token = "[IMG]"
+    stella_model = "NovaSearch/stella_en_400M_v5"
+    qwen_model = "Qwen/Qwen2.5-VL-3B-Instruct"
+
+    tokenizer = AutoTokenizer.from_pretrained(stella_model)
+    tokenizer.add_tokens(img_token)
+    img_token_id = tokenizer.convert_tokens_to_ids(img_token)
+    print(img_token_id)
+
+    qwen_processor = AutoImageProcessor.from_pretrained(qwen_model)
+
+    processor = ColStella2_5_Processor(
+        tokenizer=tokenizer, image_processor=qwen_processor
+    )
+    processor.save_pretrained(target_dir)
+    processor = ColStella2_5_Processor.from_pretrained(target_dir)
+
+    qwen = Qwen2_5_VLForConditionalGeneration.from_pretrained(qwen_model)
+    config = ColStella2_5_Config.from_pretrained(stella_model)
+    config.vision_config = qwen.config.vision_config
+    config.image_token_id = img_token_id
+
+    model = ColStella2_5.from_pretrained(stella_model, config=config)
+    model.resize_token_embeddings(len(tokenizer))
+    model.visual = qwen.visual
+    model.save_pretrained(target_dir)
+
+    model = ColStella2_5.from_pretrained(target_dir)
+    print(model)
+
+
+initialize_col_stella2_5()
 
 
 def initialize_colqwen_with_latent_attn():
@@ -595,4 +639,5 @@ def compare():
     print(f"d1: {d1}, d2: {d2}, phi: {phi}")
 
 
-compare()
+# tokenizer = AutoTokenizer.from_pretrained("NovaSearch/stella_en_400M_v5")
+# print(tokenizer.tokenize(text="[UNK]"))
