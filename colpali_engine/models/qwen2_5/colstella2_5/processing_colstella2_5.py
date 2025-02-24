@@ -5,7 +5,6 @@ import torch
 from PIL import Image
 from transformers import BatchFeature, ProcessorMixin
 from transformers.models.qwen2_5_vl.processing_qwen2_5_vl import (
-    Qwen2_5_VLProcessorKwargs,
     Qwen2_5_VLProcessor,
 )
 

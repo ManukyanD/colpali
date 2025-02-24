@@ -1,11 +1,11 @@
 from typing import ClassVar, List, Optional
-from transformers.models.qwen2_5_vl.modular_qwen2_5_vl import (
+from transformers.models.qwen2_5_vl.modeling_qwen2_5_vl import (
     Qwen2_5_VisionTransformerPretrainedModel,
     Qwen2_5_VLVisionConfig,
 )
 import torch
 from torch import nn
-from .modeling import NewPreTrainedModel, NewModel, unpad_input
+from .modeling import NewPreTrainedModel, NewModel
 from .configuration import NewConfig
 
 
@@ -70,10 +70,15 @@ class ColStella2_5(NewPreTrainedModel):
             inputs_embeds, *rest = self.new.embeddings(
                 unpad_inputs=self.config.unpad_inputs, input_ids=input_ids
             )
+            print("inputs_embeds", inputs_embeds.shape)
             if pixel_values is not None:
-                image_embeds = self.visual(pixel_values, grid_thw=image_grid_thw)
-                image_embeds = self.adaptive_avg_pooling(image_embeds)
+                print(self.visual.dtype)
+                pixel_values = pixel_values.type(self.visual.dtype)
 
+                image_embeds = self.visual(pixel_values, grid_thw=image_grid_thw)
+                print("image_embeds before pooling", image_embeds.shape)
+                image_embeds = self.adaptive_avg_pooling(image_embeds)
+                print("image_embeds after pooling", image_embeds.shape)
                 image_mask = (
                     (input_ids == self.config.image_token_id)
                     .unsqueeze(-1)
@@ -131,6 +136,7 @@ class ColStella2_5(NewPreTrainedModel):
         # L2 normalization
         proj = proj / proj.norm(dim=-1, keepdim=True)
         proj = proj * kwargs["attention_mask"].unsqueeze(-1)
+        print("proj", proj.shape)
         return proj
 
     @property
