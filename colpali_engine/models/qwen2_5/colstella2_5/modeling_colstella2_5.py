@@ -74,11 +74,19 @@ class ColStella2_5(NewPreTrainedModel):
                 pixel_values = pixel_values.type(self.visual.dtype)
 
                 image_embeds = self.visual(pixel_values, grid_thw=image_grid_thw)
+
+                n_image_tokens = (input_ids == self.config.image_token_id).sum().item()
+                n_image_features = image_embeds.shape[0]
+                if n_image_tokens != n_image_features:
+                    raise ValueError(
+                        f"Image features and image tokens do not match: tokens: {n_image_tokens}, features {n_image_features}"
+                    )
                 image_embeds = self.adaptive_avg_pooling(image_embeds)
                 image_mask = (
                     (input_ids == self.config.image_token_id)
                     .unsqueeze(-1)
                     .expand_as(inputs_embeds)
+                    .to(inputs_embeds.device)
                 )
                 image_embeds = image_embeds.to(
                     inputs_embeds.device, inputs_embeds.dtype

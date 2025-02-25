@@ -1,6 +1,6 @@
 config:
   (): colpali_engine.trainer.colmodel_training.ColModelTrainingConfig
-  output_dir: !path ../../../models/colstella2.5_lora128_bsz256x2_lr5e-4
+  output_dir: !path ../../../models/colstella2.5_lm_bsz256x2_lr5e-4
   wandb_project: "Davit"
   processor:
     (): colpali_engine.utils.transformers_wrappers.AllPurposeWrapper
@@ -58,19 +58,20 @@ config:
     # optim: "paged_adamw_8bit"
     # wandb logging
     # wandb_project: "small_colstella"
-    run_name: "colstella2.5_lora128_bsz256x2_lr5e-4"
+    run_name: "colstella2.5_lm_bsz256x2_lr5e-4"
     report_to: "wandb"
     deepspeed: "/root/colpali/deep_speed_config.json"
 
+  trainable_layers: '(.*(new).*$|.*(custom_text_proj).*$)'
 
-  peft_config:
-    (): peft.LoraConfig
-    r: 128
-    lora_alpha: 128
-    lora_dropout: 0.1
-    init_lora_weights: "gaussian"
-    bias: "none"
-    task_type: "FEATURE_EXTRACTION"
-    target_modules: '(.*(new).*(down_proj|up_gate_proj|qkv_proj|o_proj).*$|.*(custom_text_proj).*$)'
+  # peft_config:
+  #   (): peft.LoraConfig
+  #   r: 128
+  #   lora_alpha: 128
+  #   lora_dropout: 0.1
+  #   init_lora_weights: "gaussian"
+  #   bias: "none"
+  #   task_type: "FEATURE_EXTRACTION"
+  #   target_modules: '(.*(new).*(down_proj|up_gate_proj|qkv_proj|o_proj).*$|.*(custom_text_proj).*$)'
     # target_modules: '(.*(language_model).*(down_proj|gate_proj|up_proj|k_proj|q_proj|v_proj|o_proj).*$|.*(custom_text_proj).*$)'
 
