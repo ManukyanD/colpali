@@ -100,9 +100,6 @@ def initialize_col_stella2_5():
     print(model)
 
 
-initialize_col_stella2_5()
-
-
 def initialize_colqwen_with_latent_attn():
     config = ColQwen2Config.from_pretrained("Qwen/Qwen2-VL-2B-Instruct")
     config.latent_attn_num_vectors = 512
@@ -222,11 +219,6 @@ def initialize_colqwen2_5_half():
 
     model = ColQwen2_5.from_pretrained("./models/colqwen2.5-half-base")
     print(model)
-
-
-# initialize_colqwen2_5_clipped(num_layers=9)
-# query_dataset = dataset.select([*range(10)])
-# queries = [example["query"] for example in query_dataset]
 
 
 def score(queries, images):
@@ -637,7 +629,3 @@ def compare():
     V2 = V2[:d2, :]
     phi = torch.linalg.matrix_norm(V1 @ V2.T, ord="fro") / min(d1, d2)
     print(f"d1: {d1}, d2: {d2}, phi: {phi}")
-
-
-# tokenizer = AutoTokenizer.from_pretrained("NovaSearch/stella_en_400M_v5")
-# print(tokenizer.tokenize(text="[UNK]"))
